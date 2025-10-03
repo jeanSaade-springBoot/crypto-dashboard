@@ -1,0 +1,245 @@
+div#content {
+    position: absolute;
+    top: 70px;
+    color: #8A99B5;
+    background-image: linear-gradient(#4c6aa6 -1%, #000306 21%);
+    border: #464D5C;
+    width: 100%;
+    overflow-x: hidden;
+    height: 650px;
+}
+select {
+    border-radius: 7px; /* add a round shape to the border of the select element */
+    background-color:white; /* set the background color of the select element to yellow */
+    color: black; /* set the text color of the select element to black */
+    font-size: 15px; /* change the font size of the text */
+    padding: 7px; /* add padding to the select element */
+    width: 110px; /* set the width of the select element */
+}
+/* Style for option element */
+option {
+    background-color: white; /* set the background color of the option element to yellow */
+    color: #000000; /* set the text color of the option element to black */
+}
+.card-title-color {
+    color: darkorange;
+    background: url(../../img/nav-bg-tile.png) repeat;
+    width: 15.625rem;
+    height: 2rem;
+    padding: 0.313rem;
+    font-size: 2rem;
+    font-weight: bold;
+    font-family: Helvetica, "Segoe UI", Arial;
+    text-transform: uppercase;
+    border-radius: 0.2rem;
+}
+#submit {
+  background-color: #0059b3; /* change the background color */
+  color: white; /* change the text color */
+  border-radius: 5px; /* add rounded corners to the button */
+  padding: 5px 10px; /* add some padding to the button */
+  border: none; /* remove the button border */
+  font-size: 13px; /* change the font size */
+  height: 40px;
+  margin-top: 2rem;
+}
+#flow-name {
+  font-size: 15px;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  margin-left: 2px;
+}
+#submit:hover {
+  background-color: royalblue; /* change the background color when hovered */
+  cursor: pointer; /* change the cursor to a pointer */
+}
+#date {
+    color: white;
+    font-size: 15px;
+    font-weight: bold;
+    margin-right: 10px;
+
+}
+#add-flow {
+  background-color: cadetblue;
+  color: white;
+  font-size: 15px;
+  padding: 5px 16px;
+  border: none;
+  border-radius: 5px;
+  margin-left: 10px;
+}
+#flow-display {
+      width: 80%;
+      height:92%;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      padding: 10px;
+      margin-left: 10%;
+      margin-right: 10%;
+      box-shadow: inset -5px -5px 10px #eee;
+      
+    }
+.title {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  margin-top: 10px;
+}
+.flow-item button {
+  float: right;
+  padding: 0px 10px;
+  font-size: 11px;
+}
+ .table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 10px;
+ }
+
+ .table thead th {
+  background-color: #f5f5f5;
+  color: #333;
+  font-weight: bold;
+  text-align: left;
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+ }
+ .table tbody {
+  max-height: 50px; /* set the maximum height of the tbody */
+  overflow-y: scroll; /* add a scrollbar to the tbody when it overflows */
+ }
+ .table tbody td {
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+  font-weight: bold;
+  color: white;
+  height: 25px;
+ }
+
+ .table tbody tr:hover {
+  background-color: #08457e ;
+ }
+
+ .table td:last-child {
+  text-align: right;
+  padding: 5px;
+ }
+
+ .table td:last-child button {
+  background-color: #0059b3;
+  color: #fff;
+  border: none;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+ }
+
+ .table td:last-child button:hover {
+  background-color: #1a8cff;
+ }
+
+ .table td:last-child button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.5);
+ }
+ .delete{
+    margin: 0.2rem 0.2rem;
+    color: white;	
+    background-color: rgb(255 67 68)!important;
+    border-color: #ff4344!important;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    padding: 1px 3px;
+    height: 30px;
+    width: 90%;
+ }
+ .br-25{
+ border-radius: 0.25rem;}
+   .edit{
+	    margin: 0.2rem 0.4rem;
+	    height: 30px;
+	    width: 90%;
+	    color: white;
+	    background-color: rgb(113 157 240)!important;
+	    border-color: #719DF0!important;
+	    border-radius: 4px;
+	    border: 1px solid transparent;
+	    padding: .1rem 22%;
+	}
+	.update {
+	    width: 90%;
+	    margin: 0.2rem 0.4rem;
+	    color: white;
+	    background-color: rgb(101 185 106 / 20%)!important;
+	    box-shadow: 0 1px 3px 0px #66bb6a!important;
+	    border-color: #66bb6a!important;
+	    border-radius: 4px;
+	    border: 1px solid transparent;
+	    padding: 1px 3px;
+	    height: 30px;
+	}
+	.jqx-notification-info, .jqx-info {
+	    color: #ffffff !important;
+	    text-shadow: 0 -1px 0 rgb(0 0 0 / 25%) !important;
+	    background-color: #1a233a !important;
+	    background-color: rgb(102 187 106 / 27%) !important;
+	    border-left-color: #66bb6a !important;
+	    border-right-color: #66bb6a !important;
+	    border-top-color: #66bb6a !important;
+	    border-bottom-color: #66bb6a !important;
+	    text-align: center;
+	}
+	.jqx-notification {
+	     padding: 0px;
+	     padding-top: 0.5rem!important;
+	}
+	.jqx-notification-close-button {
+	     top: 0;
+	}
+	.jqx-notification-close-button-ltr {
+	     right: 0;
+	}
+   .title-color {
+    color: white!important;
+    font-weight: bold;
+    background-color: #354a76;
+}
+.h-40{
+	height:40px;
+}
+
+.required{
+   border: 1px solid #ed657d;
+}  
+.jqx-widget-header.jqx-widget-header-dark.jqx-grid-header.jqx-grid-header-dark {
+    height: 0px !important;
+}
+.jqx-grid-group-cell, .jqx-grid-empty-cell {
+    border-style: solid;
+    border-width: 0px 0px 1px 0px;
+    white-space: nowrap;
+    font-weight: normal;
+    border-color: #354a75 !important;
+}
+.jqx-grid-group-cell {
+    overflow: hidden;
+    position: absolute !important;
+    height: 100%;
+    background: #272e48;
+}
+.jqx-grid-groups-row-dark > span {
+    padding-left: 0;
+    font-size: 1rem;
+    font-weight: bold;
+}
+.title-color {
+    color: white !important;
+    font-weight: bold !important;
+    background-color: #354a76 !important;
+}
+.jqx-fill-state-hover-dark {
+   font-weight: normal  !important;
+}

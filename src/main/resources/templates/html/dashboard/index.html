@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en" data-bs-theme="blue-theme">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Coinic</title>
+  <!--favicon-->
+  <link rel="icon" href="/images/favicon-32x32.png" type="image/png">
+  <!-- loader-->
+	<link href="/css/pace.min.css" rel="stylesheet">
+	<script src="/js/pace.min.js"></script>
+
+  <!--plugins-->
+  <link href="/js/plugins/perfect-scrollbar/css/perfect-scrollbar.css" rel="stylesheet">
+  <link rel="stylesheet" type="text/css" href="/js/plugins/metismenu/metisMenu.min.css">
+  <link rel="stylesheet" type="text/css" href="/js/plugins/metismenu/mm-vertical.css">
+  <link rel="stylesheet" type="text/css" href="/js/plugins/simplebar/css/simplebar.css">
+  <!--bootstrap css-->
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css?family=Material+Icons+Outlined" rel="stylesheet">
+  <!--main css-->
+  <link href="/css/bootstrap-extended.css" rel="stylesheet">
+  <link href="/css/main.css" rel="stylesheet">
+  <link href="/css/horizontal-menu.css" rel="stylesheet">
+  <link href="/css/dark-theme.css" rel="stylesheet">
+  <link href="/css/blue-theme.css" rel="stylesheet">
+  <link href="/css/semi-dark.css" rel="stylesheet">
+  <link href="/css/bordered-theme.css" rel="stylesheet">
+  <link href="/css/responsive.css" rel="stylesheet">
+  <link href="/css/analytics.css" rel="stylesheet">
+
+
+</head>
+
+<body>
+
+  <!--start header-->
+ <header class="top-header">
+  <nav class="navbar navbar-expand align-items-center justify-content-between gap-4 border-bottom">
+    <div class="logo-header d-none d-xl-flex align-items-center gap-2">
+      <div class="logo-icon">
+<!--         <img src="/images/logo-icon.png" class="logo-img" width="45" alt="">
+ -->      </div>
+      <div class="logo-name">
+        <h5 class="mb-0">coinic</h5>
+      </div>
+    </div>
+    <div class="btn-toggle d-xl-none" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar">
+      <a href="javascript:;"><i class="material-icons-outlined">menu</i></a>
+    </div>
+    
+    <ul class="navbar-nav gap-1 nav-right-links align-items-center">
+      <li class="nav-item d-lg-none mobile-search-btn">
+        <a class="nav-link" href="javascript:;"><i class="material-icons-outlined">search</i></a>
+      </li>
+  
+      <li class="nav-item dropdown">
+        <a href="javascrpt:;" class="dropdown-toggle dropdown-toggle-nocaret" data-bs-toggle="dropdown">
+           <i class="material-icons-outlined text-white">person_outline</i>
+        </a>
+        <div class="dropdown-menu dropdown-user dropdown-menu-end shadow">
+          <a class="dropdown-item  gap-2 py-2" href="javascript:;">
+            <div class="">
+              <h5 class="user-name mb-0 fw-bold" > <span th:text="${#authentication.principal.firstName}"></span><span class="ml-1 d-none d-lg-inline " th:text="${#authentication.principal.lastName}"></span></h5>
+            </div>
+          </a>
+          <hr class="dropdown-divider">
+          <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="/logout" ><i
+          class="material-icons-outlined">power_settings_new</i>Logout</a>
+        </div>
+      </li>
+    </ul>
+
+  </nav>
+</header>
+<!--end top header-->
+
+
+<!--navigation-->
+<!-- <div class="primary-menu">
+  <nav class="navbar navbar-expand-xl align-items-center">
+   <div class="offcanvas offcanvas-start w-260" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbarLabel">
+   <div class="offcanvas-header border-bottom h-70">
+     <div class="d-flex align-items-center gap-2">
+       <div class="">
+         <img src="/images/logo-icon.png" class="logo-icon" width="45" alt="logo icon">
+       </div>
+       <div class="">
+         <h4 class="logo-text">Coinic</h4>
+       </div>
+     </div>
+     <a href="javascript:;" class="primaery-menu-close" data-bs-dismiss="offcanvas">
+      <i class="material-icons-outlined">close</i>
+     </a>
+   </div>
+ 
+   </div>
+ </nav>
+</div> -->
+<!--end navigation-->
+
+  <!--start main wrapper-->
+  <main class="main-wrapper">
+    <div class="main-content">
+      <!--breadcrumb-->
+		<div class="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
+			<div class="breadcrumb-title pe-3">	<ul class="list-unstyled">
+						<li class="nav-item dropdown"><a
+							class="d-flex nav-link dropdown-toggle dropdown-toggle-nocaret"
+							href="javascript:;" data-bs-toggle="dropdown">
+								<div class="parent-icon">
+									<img src="/css/image/Bitcoin.svg" alt="Bitcoin Logo" width="35"
+										height="35">
+								</div>
+								<div class="menu-title d-flex align-items-center ms-2">Bitcoin</div>
+								<div class="m-auto dropy-icon  pt-2">
+									<i class='material-icons-outlined'>expand_more</i>
+								</div>
+						</a>
+							<ul id="cryptoDropdown" class="dropdown-menu">
+							</ul></li>
+
+					</ul></div>
+			
+			
+		</div>
+		<!--end breadcrumb-->
+		  <div class="row">
+          <div class="col-xxl-6 d-flex align-items-stretch">
+            <div class="card w-100 overflow-hidden rounded-1">
+              <div class="card-body position-relative p-4">
+                <div class="row">
+                  <div class="col-12">
+                     <div class="d-flex align-items-center">
+	                  
+                    <div class="d-flex align-items-center w-100 gap-5">
+                   
+                        <div class="chart-container2 h-100 w-100">
+				       
+				        <div class="btn-group" role="group" aria-label="First group">
+						    <button type="button" class="btn btn-no-line " onclick="changeTimeframe('1m')">1m</button>
+						    <button type="button" class="btn btn-no-line " onclick="changeTimeframe('5m')">5m</button>
+						    <button type="button" class="btn btn-no-line " onclick="changeTimeframe('15m')">15m</button>
+						    <button type="button" class="btn btn-no-line active" onclick="changeTimeframe('1h')">1h</button>
+						    <button type="button" class="btn btn-no-line " onclick="changeTimeframe('4h')">4h</button>
+						    <button type="button" class="btn btn-no-line " onclick="changeTimeframe('1d')">1d</button>
+						
+						</div>
+							<hr class="w-100">
+						    <div class=" col-12 d-flex align-items-center">
+			                <div id="ohlc-info" class="w-100 d-none">
+			                    <div class="d-flex px-3">
+			                      <h6 class="text-warning col">OHLC Data</h6>
+			                       <div class="col"><strong></strong> <span id="date"></span></div> 
+			                       <div class="col"> <strong>Open:</strong> <span id="open"></span></div> 
+			                       <div class="col"> <strong>High:</strong> <span id="high"></span></div> 
+			                       <div class="col"> <strong>Low:</strong> <span id="low"></span></div> 
+			                       <div class="col"> <strong>Close:</strong> <span id="close"></span></div> 
+			                    </div>
+			                </div>
+            				</div>
+            				<div id="loading-spinner" class="spinner-style" role="status">
+						        <button class="btn btn-primary" type="button" disabled=""> <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+									Loading...</button>
+						    </div>
+		                 
+						  	<div id="main-chart"></div>
+						
+		                   <div id="chart-line2"></div>
+		                    <div id="chart-line"></div>
+		                </div>
+                    </div>
+                  </div>
+                  <div class="col-12 col-sm-5">
+                    <div class="welcome-back-img pt-4">
+<!--                        <img src="/images/gallery/welcome-back-3.png" height="180" alt="">
+ -->                    </div>
+                  </div>
+                </div><!--end row-->
+              </div>
+            </div>
+          </div>
+    
+        </div>
+
+		<div class="col-xxl-6 d-flex align-items-stretch">
+			<div id="crypto2-container"></div>
+		</div>
+
+	</div>
+   </main>
+  <!--end main wrapper-->
+
+  <!--start overlay-->
+     <div class="overlay btn-toggle"></div>
+  <!--end overlay-->
+
+   <!--start footer-->
+   <footer class="page-footer">
+    <p class="mb-0">Copyright © 2025. All right reserved.</p>
+  </footer>
+  <!--end footer-->
+
+  <!--start cart-->
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasCart">
+    <div class="offcanvas-header border-bottom h-70">
+      <h5 class="mb-0" id="offcanvasRightLabel">8 New Orders</h5>
+      <a href="javascript:;" class="primaery-menu-close" data-bs-dismiss="offcanvas">
+        <i class="material-icons-outlined">close</i>
+      </a>
+    </div>
+   
+    <div class="offcanvas-footer h-70 p-3 border-top">
+      <div class="d-grid">
+        <button type="button" class="btn btn-grd btn-grd-primary" data-bs-dismiss="offcanvas">View Products</button>
+      </div>
+    </div>
+  </div>
+  <!--end cart-->
+
+
+
+  <!--bootstrap js-->
+  <script src="/js/bootstrap.bundle.min.js"></script>
+
+  <!--plugins-->
+  <script src="/js/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js"></script>
+  
+  <!--plugins-->
+  <script src="/js/plugins/perfect-scrollbar/js/perfect-scrollbar.js"></script>
+  <script src="/js/plugins/metismenu/metisMenu.min.js"></script>
+  <script src="/js/plugins/apexchart/apexcharts.min.js"></script>
+  <script src="/js/plugins/simplebar/js/simplebar.min.js"></script>
+  <script src="/js/plugins/peity/jquery.peity.min.js"></script>
+
+    <script src="/js/graph/chartManager.js"></script>
+  
+<!--  <script src="/js/main.js"></script>
+-->  <script src="/js/dashboard1.js"></script>
+
+</body>
+
+</html>

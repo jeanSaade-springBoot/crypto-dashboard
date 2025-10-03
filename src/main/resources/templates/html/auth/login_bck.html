@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="">
+  <meta name="author" content="">
+  <link href="img/logo/logo.png" rel="icon">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <title>Libvol - Login</title>
+  <link href="/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+  <link href="/css/ruang-admin.min.css" rel="stylesheet">
+  <link href="/css/marquee.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/jqx.base.css" type="text/css" />
+  <link href="/css/jqx.dark.css" rel="stylesheet">
+  <link href="/css/input.css" rel="stylesheet">
+  <style>
+div#content {
+    position: absolute;
+    top: 70px;
+    color: #8A99B5;
+    background-image: linear-gradient(#4c6aa6 -1%, #000306 21%);
+    border: #464D5C;
+    width: 100%;
+    overflow-x: hidden;
+    min-height: 650px;
+}
+a.sign-up-style {
+    color: darkorange;
+    font-weight: bold;
+    font-size: 0.6875rem;
+}
+
+</style>
+</head>
+<body id="page-top">
+  <div id="wrapper">
+  
+    <div id="content-wrapper" class="d-flex flex-column">
+    <div id="fixedMenu">
+        <!-- TopBar -->
+   <nav class="navbar navbar-expand navbar-light bg-navbar topbar static-top">
+	<img id="imglogo" src="../../img/logo.png" align="absmiddle" style="height:70px;margin-left: 3%;">
+	<button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarCollapse">
+		<span class="navbar-toggler-icon"></span>
+	</button>
+	<!-- Collection of nav links, forms, and other content for toggling -->
+	<div id="navbarCollapse" class="collapse navbar-collapse justify-content-start">		
+		
+		<div class="navbar-nav mr-auto">
+		   <div style=" background: url(../../img/WebResource.png) top left repeat-x;     display: flex; border-radius: 0.2rem; padding: 0.2rem;">
+			<a href="/" class="nav-item nav-link active"><img alt="" src="../../img/ico-home.png" class="MainMenuIcon">Home</a>
+		 </div>
+		</div>
+		
+		<div style="margin-right: 2.5rem;"> 
+	    	<button class="blinking-button mr-2" id="video-button">
+		    <svg xmlns="http://www.w3.org/2000/svg" data-name="Layer 1" viewBox="0 0 100 125" x="0px" y="0px" height="20px" class="pr-2">
+		        <defs>
+		            <style>.cls-1{fill-rule:evenodd;}</style>
+		        </defs>
+		        <title>a</title>
+		        <path class="cls-1" d="M66.687,36.789H5.134A5.155,5.155,0,0,0,0,41.923V85.13a5.155,5.155,0,0,0,5.134,5.134H66.687a5.155,5.155,0,0,0,5.135-5.134V41.923a5.155,5.155,0,0,0-5.135-5.134Zm9.2,14.922V75.342L96.909,85.853A2.124,2.124,0,0,0,100,83.938V43.116A2.124,2.124,0,0,0,96.909,41.2L75.887,51.711ZM52.055,68.35,29.411,79.672A5.4,5.4,0,0,1,21.6,74.848V52.205a5.4,5.4,0,0,1,7.813-4.824L52.055,58.7a5.388,5.388,0,0,1,0,9.647ZM27.6,76.052a1.332,1.332,0,0,1-1.938-1.2V52.205A1.331,1.331,0,0,1,27.6,51L50.244,62.323a1.345,1.345,0,0,1,0,2.407L27.6,76.052ZM56.609,21.37a7.915,7.915,0,1,0,0,11.193,7.914,7.914,0,0,0,0-11.193Zm-21.969-7.9a12.739,12.739,0,1,0,0,18.015A12.738,12.738,0,0,0,34.64,13.467Z" fill="#ef4452"/> <!-- Add fill attribute with desired color -->
+		    </svg> Demo Video
+		   </button>
+	    </div>
+	   <div style="margin-right: 2.5rem;"> 
+	    	 <button id="clientLogin" class="jqx-rc-all jqx-rc-all-dark jqx-button jqx-button-dark jqx-widget jqx-widget-dark buttonRipple jqx-fill-state-normal jqx-fill-state-normal-dark jqx-primary jqx-primary-dark">
+		        SIGN IN
+		           <i class="fa-solid fa-right-to-bracket"></i>
+		        </button>
+	    	 <a id="" class="sign-up-style" href="/register">Not a member? Register</a>
+	    </div>
+	</div>
+</nav>
+        <!-- Topbar -->
+ </div>
+   <div id="content">
+        <!-- Container Fluid-->
+        <div class="container-fluid" id="container-wrapper">
+          <div class="d-sm-flex align-items-center justify-content-between mb-4" style="display: none !important;">
+            <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
+            <ol class="breadcrumb">
+              <li class="breadcrumb-item"><a href="./">Home</a></li>
+              <li class="breadcrumb-item active" aria-current="page">Dashboard</li>
+            </ol>
+          </div>
+
+          <div class="mt-5 row g-3">
+            <div class="col-3"></div>
+            <div class="col-5 card">
+			<h1 class="form-label fw-bold mt-4 mb-4" >Login to Your Account</h1>
+            	 
+				  <form>
+					  <!-- Email input -->
+					  <div class="form-outline mb-4 textfield-outlined">
+					    <input type="text" id="username" class="form-control"  placeholder=" "/>
+					    <label class="form-label" for="username">Username</label>
+					  </div>
+					
+					  <!-- Password input -->
+					  <div class="form-outline mb-4 textfield-outlined">
+					    <input type="password" id="password" class="form-control"  placeholder=" " />
+					     <label class="form-label" for="password">Password</label>
+					  </div>
+					
+					  <!-- 2 column grid layout for inline styling -->
+					  <div class="row mb-4">
+					    <div class="col d-flex justify-content-start">
+					      <!-- Checkbox -->
+					      <div class="form-check">
+					        <input class="form-check-input" type="checkbox" value="" id="formLogin"  />
+					        <label class="form-check-label" for="formLogin"> Remember me </label>
+					      </div>
+					    </div>
+					
+					    <div class="col d-flex justify-content-end">
+					      <!-- Simple link -->
+					      <a href="/forgotpassword">Forgot password?</a>
+					    </div>
+					  </div>
+					
+					  <!-- Submit button -->
+					  <button type="button" class="btn btn-primary btn-block btn-style mb-4" id="signIn">Sign in</button>
+					  <!-- Register buttons -->
+					  <div class="text-center">
+					    <p>Not a member? <a href="/register">Register</a></p>
+					  </div>
+					  <div id="ErrorMessage" class="alert alert-danger" style="display:none"></div>
+					</form>  
+			</div>
+          </div>
+         
+
+          <!-- Modal Logout -->
+          <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabelLogout"
+            aria-hidden="true">
+            <div class="modal-dialog" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="exampleModalLabelLogout">Ohh No!</h5>
+                  <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                  </button>
+                </div>
+                <div class="modal-body">
+                  <p>Are you sure you want to logout?</p>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-outline-primary" data-dismiss="modal">Cancel</button>
+                  <a href="login.html" class="btn btn-primary">Logout</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <!---Container Fluid-->
+      </div>
+     
+      <!-- Footer -->
+      <footer class="sticky-footer bg-dark">
+        <div class=" my-auto">
+          <div class="copyright text-center my-auto">
+            <span>copyright &copy; <script> document.write(new Date().getFullYear()); </script> - developed by
+              <b><a href="" target="_blank"></a></b>
+            </span>
+          </div>
+        </div>
+      </footer>
+      <!-- Footer -->
+    </div>
+  </div>
+
+  <!-- Scroll to top -->
+  <a class="scroll-to-top rounded" href="#page-top">
+    <i class="fas fa-angle-up"></i>
+  </a>
+
+</body>
+  <script src="/js/jquery.min.js"></script>
+  <script src="/js/jqwidgets/jqxcore.js"></script> 
+  <script src="/js/jqwidgets/jqxbuttons.js"></script> 
+  <script src="/js/config/session_storage.js"></script>
+  <script src="/js/auth/login.js"></script> 
+  <script src='/js/bourse/video.js'></script>
+</html>
