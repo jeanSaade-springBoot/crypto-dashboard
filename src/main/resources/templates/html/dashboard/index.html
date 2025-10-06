@@ -16,6 +16,7 @@
   <link rel="stylesheet" type="text/css" href="/js/plugins/metismenu/metisMenu.min.css">
   <link rel="stylesheet" type="text/css" href="/js/plugins/metismenu/mm-vertical.css">
   <link rel="stylesheet" type="text/css" href="/js/plugins/simplebar/css/simplebar.css">
+  <link rel="stylesheet" type="text/css" href="/js/plugins/apexchart/apexcharts.css">
   <!--bootstrap css-->
   <link href="/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -29,8 +30,6 @@
   <link href="/css/semi-dark.css" rel="stylesheet">
   <link href="/css/bordered-theme.css" rel="stylesheet">
   <link href="/css/responsive.css" rel="stylesheet">
-  <link href="/css/analytics.css" rel="stylesheet">
-
 
 </head>
 
@@ -130,7 +129,7 @@
 		  <div class="row">
           <div class="col-xxl-6 d-flex align-items-stretch">
             <div class="card w-100 overflow-hidden rounded-1">
-              <div class="card-body position-relative p-4">
+              <div class="card-body position-relative p-0">
                 <div class="row">
                   <div class="col-12">
                      <div class="d-flex align-items-center">
@@ -139,20 +138,19 @@
                    
                         <div class="chart-container2 h-100 w-100">
 				       
-				        <div class="btn-group" role="group" aria-label="First group">
-						    <button type="button" class="btn btn-no-line " onclick="changeTimeframe('1m')">1m</button>
-						    <button type="button" class="btn btn-no-line " onclick="changeTimeframe('5m')">5m</button>
-						    <button type="button" class="btn btn-no-line " onclick="changeTimeframe('15m')">15m</button>
-						    <button type="button" class="btn btn-no-line active" onclick="changeTimeframe('1h')">1h</button>
-						    <button type="button" class="btn btn-no-line " onclick="changeTimeframe('4h')">4h</button>
-						    <button type="button" class="btn btn-no-line " onclick="changeTimeframe('1d')">1d</button>
-						
+				        <div class="btn-group pt-2" role="group" aria-label="First group">
+						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line " onclick="changeTimeframe('1m')">1m</button>
+						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line " onclick="changeTimeframe('5m')">5m</button>
+						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line " onclick="changeTimeframe('15m')">15m</button>
+						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line active" onclick="changeTimeframe('1h')">1h</button>
+						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line " onclick="changeTimeframe('4h')">4h</button>
+						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line " onclick="changeTimeframe('1d')">1d</button>
+						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line " onclick="changeTimeframe('1w')">1w</button>
 						</div>
 							<hr class="w-100">
 						    <div class=" col-12 d-flex align-items-center">
-			                <div id="ohlc-info" class="w-100 d-none">
+			                <div id="ohlc-info" class="w-100 fs-8 d-none">
 			                    <div class="d-flex px-3">
-			                      <h6 class="text-warning col">OHLC Data</h6>
 			                       <div class="col"><strong></strong> <span id="date"></span></div> 
 			                       <div class="col"> <strong>Open:</strong> <span id="open"></span></div> 
 			                       <div class="col"> <strong>High:</strong> <span id="high"></span></div> 
@@ -174,7 +172,7 @@
                     </div>
                   </div>
                   <div class="col-12 col-sm-5">
-                    <div class="welcome-back-img pt-4">
+                    <div class="welcome-back-img pt-3">
 <!--                        <img src="/images/gallery/welcome-back-3.png" height="180" alt="">
  -->                    </div>
                   </div>

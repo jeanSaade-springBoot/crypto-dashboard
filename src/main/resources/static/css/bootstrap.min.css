@@ -197,7 +197,7 @@ body {
 	-webkit-tap-highlight-color: transparent
 }
 hr {
-	margin: 1rem 0;
+	margin: .25rem 0;
 	color: inherit;
 	border: 0;
 	border-top: var(--bs-border-width) solid;

@@ -1,1037 +1,531 @@
-var chart;
-var chartLine;
-var now = new Date();
-var todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Today at midnight
-var yesterdayMidnight = new Date(todayMidnight);
+/****************************************************
+ * dashboard1.js — Binance-only (clean grouping + 2dp)
+ * - Candlestick with index-based X
+ * - Prefetch older while panning near left edge
+ * - Freeze Y during motion; recompute Y once on idle
+ * - OHLC pill: bullish=green, bearish=red (ALL O/H/L/C)
+ * - Date format:
+ *     1d / 1w -> yyyy/MM/dd
+ *     other   -> yyyy/MM/dd hh:mm (UTC)
+ * - Number format (OHLC + Y-axis): 125,031.34 (no left zeros)
+ ****************************************************/
 
-yesterdayMidnight.setDate(yesterdayMidnight.getDate() - 5); // Yesterday at midnight
-todayMidnight.setDate(todayMidnight.getDate() + 1);
+/* ---------- Small DOM helpers ---------- */
+function byId(id) { return document.getElementById(id); }
+function showSpinner(){ const s = byId('loading-spinner'); if (s) s.classList.remove('hidden'); }
+function hideSpinner(){ const s = byId('loading-spinner'); if (s) s.classList.add('hidden'); }
 
-var fromdate = formatDate(yesterdayMidnight); // Start of yesterday
-var todate = formatDate(todayMidnight);        // Start of today (end of yesterday's full interval)
+/* ---------- Number formatting (no left padding) ---------- */
+const fmtNum = (n) =>
+  (n == null || !isFinite(n))
+    ? "-"
+    : new Intl.NumberFormat("en-US", {
+        useGrouping: true,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(Number(n));
 
-var previousXMin = null;
+/* ---------- Date helpers ---------- */
+function pad2(n){ return String(n).padStart(2,'0'); }
+function toISO_utc(date) {
+  return date.getUTCFullYear() + "-" +
+    pad2(date.getUTCMonth() + 1) + "-" +
+    pad2(date.getUTCDate()) + "T" +
+    pad2(date.getUTCHours()) + ":" +
+    pad2(date.getUTCMinutes()) + ":00Z";
+}
+function formatISO_ymd_hm_utc(iso){
+  const d = new Date(iso);
+  return `${d.getUTCFullYear()}/${pad2(d.getUTCMonth()+1)}/${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+}
+function formatISO_ymd_utc(iso){
+  const d = new Date(iso);
+  return `${d.getUTCFullYear()}/${pad2(d.getUTCMonth()+1)}/${pad2(d.getUTCDate())}`;
+}
+function formatForInterval(iso, interval){
+  const tf = (interval || '').toLowerCase();
+  if (tf === '1d' || tf === '1w' || tf === '1wk' || tf === '1week') return formatISO_ymd_utc(iso);
+  return formatISO_ymd_hm_utc(iso);
+}
 
-var page = 0;
-const size = 10;
+/* ---------- State ---------- */
+let chart;
+let now = new Date();
+let todayMidnight = new Date(Date.UTC(
+  now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0
+));
+let yesterdayMidnight = new Date(todayMidnight);
+yesterdayMidnight.setUTCDate(yesterdayMidnight.getUTCDate() - 5);
 
-var totalPages = Infinity;
-let windowSize = 5;
-	
-var allData = []; // Store fetched data
-var visibleData = []; // Store fetched data
-var isFetching = false;
-var selectedInterval =$(".btn-group .btn.active").text().trim();
-var cryptoCurrency="BTC";
+let fromdate = toISO_utc(yesterdayMidnight);
+let todate   = toISO_utc(todayMidnight);
 
-var originalXAxisOptions = {
-  labels: {
-    show: false,
-    style: {
-      fontSize: '12px',
-      fontFamily: 'Helvetica, Arial, sans-serif',
-      fontWeight: 400,
-      cssClass: 'fill-white'
+let page = 0;
+const size = 250;
+let totalPages = Infinity;
+let windowSize = 120;
+let allData = [];                 // [{x: ISO, y:[o,h,l,c]}]
+let isFetching = false;
+
+let selectedInterval = '1h';      // default
+const DEFAULT_SYMBOL = 'BTCUSDT'; // no <select id="symbol"> in HTML
+
+// Hover/latest control
+let hoverActive = false;
+let latestIndex = -1;
+
+/* ---------- Binance adapter ---------- */
+const BINANCE_BASE = 'https://api.binance.com/api/v3/klines';
+let BINANCE_CURSOR_MS = null;
+function resolveBinanceSymbol() { return DEFAULT_SYMBOL; }
+
+function klinesToContent(klines) {
+  return klines.map(k => ({
+    x: new Date(k[0]).toISOString(),
+    y: [ +k[1], +k[2], +k[3], +k[4] ] // [open, high, low, close]
+  }));
+}
+
+async function fetchBinanceChunk({ symbol, interval, size, toDateISO }) {
+  let endTimeMs = Number.isFinite(BINANCE_CURSOR_MS)
+    ? BINANCE_CURSOR_MS - 1
+    : (toDateISO ? Date.parse(toDateISO) : Date.now());
+  const limit = Math.max(1, Math.min(1000, size || 100));
+
+  const url = new URL(BINANCE_BASE);
+  url.searchParams.set('symbol', symbol);
+  url.searchParams.set('interval', interval);
+  url.searchParams.set('limit', String(limit));
+  url.searchParams.set('endTime', String(endTimeMs));
+
+  let res;
+  try { res = await fetch(url.toString(), { mode: 'cors' }); }
+  catch (err) { throw new Error(`Network/CORS error calling Binance: ${err?.message || err}`); }
+
+  if (!res.ok) {
+    if (res.status === 429) throw new Error("Binance rate limit (429). Slow down requests.");
+    throw new Error(`Binance ${res.status} ${res.statusText}`);
+  }
+  const arr = await res.json();
+  if (!Array.isArray(arr) || arr.length === 0) return [];
+  BINANCE_CURSOR_MS = arr[0][0]; // oldest point time
+  return klinesToContent(arr);
+}
+
+async function getCandles(dataParam) {
+  if (dataParam.page === 0) {
+    BINANCE_CURSOR_MS = dataParam.toDate ? Date.parse(dataParam.toDate) : Date.now();
+  }
+  const content = await fetchBinanceChunk({
+    symbol: resolveBinanceSymbol(),
+    interval: dataParam.interval || selectedInterval || '1h',
+    size: dataParam.size || size,
+    toDateISO: dataParam.toDate || null
+  });
+  return { content, totalPages: Infinity };
+}
+
+/* ---------- Axis & chart options ---------- */
+const baseXAxis = {
+  labels: { show: false, style: {  colors: '#fff', fontSize: '0.70rem', fontFamily: 'Helvetica, Arial, sans-serif', fontWeight: 400, cssClass: 'fill-white' } },
+  tooltip: {
+    enabled: true,
+    formatter: (val, opts) => {
+      // val may be the ISO string or an index; be defensive
+      let iso = val;
+      const i = opts?.dataPointIndex;
+      if (Number.isInteger(i) && i >= 0 && i < allData.length) {
+        iso = allData[i]?.x ?? val;
+      }
+      return formatForInterval(iso, selectedInterval); // <- your formatter
     }
   },
   type: 'category',
-  tickAmount: 5, 
-  crosshairs: {
-    show: true,
-    width: 1,
-    position: "front",
-    stroke: {
-      color: "#ffffff",
-      width: 1,
-      dashArray: 3
-    }
-  },
+  tickAmount: 5,
+  crosshairs: { show: true, width: 1, position: "front", stroke: { color: "#ffffff", width: 1, dashArray: 3 } },
   axisTicks: { show: false },
   axisBorder: { show: true },
-  tooltip: { enabled: true },
-  stepSize :10,
+  stepSize: 10,
+  min: 0,
+  max: 0
 };
-
-// Y-axis configuration
-var originalYAxisOptions = {
+const baseYAxis = {
   labels: {
-    style: {
-      fontSize: '12px',
-      fontFamily: 'Helvetica, Arial, sans-serif',
-      fontWeight: 400,
-      cssClass: 'fill-white'
-    }
+    style: {colors: '#fff',  fontSize: '0.70rem', fontFamily: 'Helvetica, Arial, sans-serif', fontWeight: 400, cssClass: 'fill-white' },
+    formatter: (val) => fmtNum(val) // format Y-axis labels
   },
-  crosshairs: {
-    show: true,
-    width: 1,
-    position: "front",
-    stroke: {
-      color: "#ffffff",
-      width: 1,
-      dashArray: 3
-    }
-  },
-  tooltip: { enabled: true }
+  crosshairs: { show: true, width: 1, position: "front", stroke: { color: "#ffffff", width: 1, dashArray: 3 } },
+  tooltip: { enabled: true },
+  min: 0,
+  max: 1
 };
 
-// Chart configuration (general settings, events, toolbar, etc.)
-var originalChartSettings = {
-	animations: {
-        enabled: false,
-        },
-  id: 'chart2',
-  group: 'candle',
-  zoom: {
-    enabled: true,
-    type: 'x'
-  },
-  toolbar: {
-    show: false,
-    autoSelected: 'pan',
-    offsetX: 0,
-    offsetY: 0,
-    tools: {
-      download: false,
-      selection: true,
-      zoom: true,
-      zoomin: true,
-      zoomout: true,
-      pan: true,
-      reset: true || '<img src="/static/icons/reset.png" width="20">',
-      customIcons: []
-    }
-  },
-  type: 'candlestick',
-  height: 350,
-  events: {
-  scrolled: function(chartContext, { xaxis }) {
-    // Existing panning logic
-   if (previousXMin === null) {
-      previousXMin = xaxis.min;
-      return;
-    }
-    if (xaxis.min < previousXMin && !isFetching) 
-   	{	$("#loading-spinner").show();
-		fetchMoreCandlestickData(xaxis);
-	    if (previousXMin !== null) {
-	      if (xaxis.min < previousXMin) {
-	        console.log("Panned left (scroll left)");
-	      } else if (xaxis.min > previousXMin) {
-	        console.log("Panned right (scroll right)");
-	      }
-	    }
-	    previousXMin = xaxis.min; 
-    }
-    // In category mode, xaxis.min and xaxis.max are indices.
-    let visibleStartIndex = Math.floor(xaxis.min);
-    let visibleEndIndex = Math.ceil(xaxis.max);
-    
-    // Clamp indices to the data array boundaries
-    visibleStartIndex = Math.max(0, visibleStartIndex);
-    visibleEndIndex = Math.min(allData.length - 1, visibleEndIndex);
-    
-    // Slice the allData array to get the visible subset.
-    let visibleSubset = allData.slice(visibleStartIndex, visibleEndIndex + 1);
-    
-    // Calculate new y-axis limits (using 5% margin, for example)
-    let newYLimits = calculateYAxisRangeFromVisibleData(visibleSubset, 5);
-    	originalYAxisOptions.min = newYLimits.min;
-		originalYAxisOptions.max = newYLimits.max;
-    // Update the chart's y-axis options
-    chart.updateOptions({
-      yaxis:originalYAxisOptions
-    });
-  },
-   beforeZoom: function(chartContext, { xaxis }) {
-	    // In category mode, xaxis.min and xaxis.max are indices.
-	    let visibleStartIndex = Math.floor(xaxis.min);
-	    let visibleEndIndex = Math.ceil(xaxis.max);
-	    
-	    // Clamp indices to the data array boundaries
-	    visibleStartIndex = Math.max(0, visibleStartIndex);
-	    visibleEndIndex = Math.min(allData.length - 1, visibleEndIndex);
-	    
-	    // Slice the allData array to get the visible subset.
-	    let visibleSubset = allData.slice(visibleStartIndex, visibleEndIndex + 1);
-	    
-	    // Calculate new y-axis limits (using 5% margin, for example)
-	    let newYLimits = calculateYAxisRangeFromVisibleData(visibleSubset, 5);
-	    	originalYAxisOptions.min = newYLimits.min;
-			originalYAxisOptions.max = newYLimits.max;
-	    // Update the chart's y-axis options
-	    chart.updateOptions({
-	      yaxis:originalYAxisOptions
-	    });
-  },
-  zoomed: function(chartContext, { xaxis }) {
-      	windowSize = xaxis.max - xaxis.min + 1;
+let options = {
+  chart: {
+    animations: { enabled: false },
+    id: 'chart2',
+    group: 'candle',
+    zoom: { enabled: true, type: 'x' },
+    toolbar: {
+      show: false,
+      autoSelected: 'pan',
+      tools: { download: false, selection: true, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true, customIcons: [] }
+    },
+    type: 'candlestick',
+    height: 350,
+    events: {
+      scrolled: (_ctx, payload) => onRangeEvent(payload),
+      selection: (_ctx, payload) => onRangeEvent(payload),
+      zoomed:   (_ctx, payload) => onRangeEvent(payload),
+
+      // Hover a candle => OHLC for that candle
+      dataPointMouseEnter: function (_event, _ctx, { dataPointIndex, w }) {
+        hoverActive = true;
+        updateOHLCFromIndex(dataPointIndex, w);
       },
-  dataPointMouseEnter: function(event, chartContext, { seriesIndex, dataPointIndex, w }) {
-    let open = w.globals.seriesCandleO[seriesIndex][dataPointIndex];
-    let high = w.globals.seriesCandleH[seriesIndex][dataPointIndex];
-    let low = w.globals.seriesCandleL[seriesIndex][dataPointIndex];
-    let close = w.globals.seriesCandleC[seriesIndex][dataPointIndex];
-    document.getElementById("date").textContent = w.config.series[0].data[dataPointIndex].x;
-    document.getElementById("open").textContent = open;
-    document.getElementById("high").textContent = high;
-    document.getElementById("low").textContent = low;
-    document.getElementById("close").textContent = close;
-    $("#ohlc-info").removeClass("d-none");
+      // Leave => revert to latest candle values
+      dataPointMouseLeave: function () {
+        hoverActive = false;
+        showLatestOHLC();
+      }
+    }
+  },
+  plotOptions: {
+    candlestick: { colors: { upward: "#00E396", downward: "#FF4560" }, wick: { useFillColor: true } }
+  },
+  title: { align: 'left' },
+  xaxis: { ...baseXAxis },
+  yaxis: { ...baseYAxis },
+  tooltip: { enabled: true,   theme: 'dark', custom: () => '', style: { fontSize: '0px' }, marker: { show: false }, y: { show: false }, x: { show: false } },
+  grid: {
+    show: true,
+    borderColor: '#3d4258',
+    strokeDashArray: 0,
+    position: 'back',
+    xaxis: { lines: { show: true } },
+    yaxis: { lines: { show: true } }
+  },
+  series: [{ data: [] }]
+};
+
+/* ---------- OHLC pill helpers (ALL fields colored) ---------- */
+function setOHLCColors(bullish) {
+  const ids = ['open','high','low','close'];
+  const pos = 'text-success';
+  const neg = 'text-danger';
+  ids.forEach(id => {
+    const el = byId(id);
+    if (el) { el.classList.remove(pos); el.classList.remove(neg); }
+  });
+  ids.forEach(id => { const el = byId(id); if (el) el.classList.add(bullish ? pos : neg); });
+}
+function writeOHLC(candle) {
+  if (!candle) return;
+  const [O,H,L,C] = candle.y;
+  const setText = (id, v) => { const el = byId(id); if (el) el.textContent = v; };
+
+  const dateStr = formatForInterval(candle.x, selectedInterval);
+  setText('date',  dateStr);
+  setText('open',  fmtNum(O));
+  setText('high',  fmtNum(H));
+  setText('low',   fmtNum(L));
+  setText('close', fmtNum(C));
+
+  setOHLCColors(C >= O);
+  const info = byId('ohlc-info'); if (info) info.classList.remove('d-none');
+}
+function updateOHLCFromIndex(idx, w) {
+  try {
+    const X = w.config.series[0].data[idx].x;
+    const O = w.globals.seriesCandleO[0][idx];
+    const H = w.globals.seriesCandleH[0][idx];
+    const L = w.globals.seriesCandleL[0][idx];
+    const C = w.globals.seriesCandleC[0][idx];
+    writeOHLC({ x: X, y: [O,H,L,C] });
+  } catch (_) {
+    const c = allData[idx];
+    if (c) writeOHLC(c);
   }
 }
-};
+function showLatestOHLC() {
+  if (latestIndex < 0 || latestIndex >= allData.length) return;
+  writeOHLC(allData[latestIndex]);
+}
+function refreshLatestIndexAndMaybeUpdatePill() {
+  latestIndex = allData.length - 1;
+  if (!hoverActive) showLatestOHLC();
+}
 
-// Plot options configuration
-var originalPlotOptions = {
-  candlestick: {
-    colors: {
-      upward: "#00E396",
-      downward: "#FF4560"
-    },
-    wick: {
-      useFillColor: true
-    }
+/* ---------- Y limits from visible index window ---------- */
+function calculateYLimitsCandleSticks(data, iMin, iMax, marginPct) {
+  const i0 = Math.max(0, Math.floor(iMin));
+  const i1 = Math.min(data.length, Math.ceil(iMax));
+  if (i1 <= i0) return { min: 0, max: 1 };
+  let yMin = Number.POSITIVE_INFINITY, yMax = Number.NEGATIVE_INFINITY;
+  for (let i = i0; i < i1; i++) {
+    const y = data[i].y;
+    if (Array.isArray(y)) { if (y[2] < yMin) yMin = y[2]; if (y[1] > yMax) yMax = y[1]; }
+    else { if (y < yMin) yMin = y; if (y > yMax) yMax = y; }
   }
-};
+  if (!isFinite(yMin) || !isFinite(yMax) || yMax <= yMin) return { min: 0, max: 1 };
+  const pad = Math.abs((yMax - yMin) * (marginPct / 100));
+  return { min: yMin - pad, max: yMax + pad };
+}
 
-// Tooltip configuration
-var originalTooltipOptions = {
-  enabled: true,
-  custom: function({ series, seriesIndex, dataPointIndex, w }) {
-    return '';
-  },
-  style: { fontSize: '0px' },
-  marker: { show: false },
-  y: { show: false },
-  x: { show: false }
-};
+/* ---------- Edge detection & prefetch control ---------- */
+const EDGE_RATIO = 0.12, EDGE_MIN = 5;
+function isNearLeftIndex(iMin, iMax) {
+  const span = Math.max(1, iMax - iMin);
+  return iMin <= Math.max(EDGE_MIN, Math.floor(span * EDGE_RATIO));
+}
+let panDir = 0, idleTimer = null;
+const PAN_IDLE_MS = 140;
+let prefetchToken = { id: 0, dir: 0 };
+const PREFETCH_MAX_STEPS = 4, PREFETCH_COOLDOWN = 80;
+function cancelPrefetchLoop() { prefetchToken.id++; prefetchToken.dir = 0; }
 
-// Grid configuration
-var originalGridOptions = {
-  show: true,
-  borderColor: '#3d4258',
-  strokeDashArray: 0,
-  position: 'back',
-  xaxis: { lines: { show: true } },
-  yaxis: { lines: { show: true } }
-};
+/* ---------- Core: recompute Y for current X window ---------- */
+async function recomputeYForCurrentWindow(applyAnim = true) {
+  if (!chart || !allData.length) return;
+  const minIdx = options.xaxis.min ?? 0;
+  const maxIdx = options.xaxis.max ?? allData.length;
+  const yL = calculateYLimitsCandleSticks(allData, minIdx, maxIdx, 10);
 
-
-// Separate Chart Settings
-var originalChartLineSettings = {
-  id: 'chart1',
-  height: 500,
-  type: 'bar',
-  group: 'candle',
-  toolbar: { show: false }
-};
-
-// Separate Plot Options
-var originalPlotOptionsLine = {
-  bar: {
-    distributed: true
-  }
-};
-
-// Separate X-axis Options
-var originalXAxisLineOptions = {
-  type: 'category',
-  tooltip: { enabled: false },
-  labels: {
-    style: {
-      fontSize: '12px',
-      fontFamily: 'Helvetica, Arial, sans-serif',
-      fontWeight: 400,
-      cssClass: 'fill-white'
-    }
-  }
-};
-
-// Separate Y-axis Options
-var originalYAxisLineOptions = {
-  labels: {
-    show: false,
-    formatter: function(value) {
-      return value.toFixed(2);
-    },
-    style: {
-      fontSize: '12px',
-      fontFamily: 'Helvetica, Arial, sans-serif',
-      fontWeight: 400,
-      cssClass: 'fill-white'
-    }
-  }
-};
-
-// Separate Data Labels Options
-var originalDataLabelsLineOptions = {
-  enabled: false
-};
-
-// Separate Tooltip Options
-var originalTooltipLineOptions = {
-  enabled: true,
-  shared: true,          // Ensures tooltips appear together on both charts
-  intersect: false,      // Ensures hover aligns on the same date
-  custom: function({ series, seriesIndex, dataPointIndex, w }) {
-    return '';         // Hide tooltip content
-  },
-  style: {
-    fontSize: '0px'    // Hide tooltip text
-  },
-  marker: { show: false },   // No tooltip markers
-  y: { show: false },        // No Y-axis tooltip
-  x: { show: false }         // No X-axis tooltip
-};
-
-// Separate Legend Options
-var originalLegendLineOptions = {
-  show: false
-};
-
-// Assemble the full chart options
-var options = {
-  chart: originalChartSettings,
-  plotOptions: originalPlotOptions,
-  title: { align: 'left' },
-  xaxis: originalXAxisOptions,
-  yaxis: originalYAxisOptions,
-  tooltip: originalTooltipOptions,
-  grid: originalGridOptions
-};
-// Assemble the full optionsLine object
-var optionsLine = {
-  chart: originalChartLineSettings,
-  plotOptions: originalPlotOptionsLine,
-  xaxis: originalXAxisLineOptions,
-  yaxis: originalYAxisLineOptions,
-  dataLabels: originalDataLabelsLineOptions,
-  tooltip: originalTooltipLineOptions,
-  legend: originalLegendLineOptions
-};
-
-const cryptoList = [
-  {
-    "name": "Bitcoin",
-    "symbol": "BTC",
-    "icon": "/css/image/Bitcoin.svg"
-  },
-  {
-    "name": "Ethereum",
-    "symbol": "ETH",
-    "icon": "/css/image/ethereum.svg"
-  },
-  {
-    "name": "Solana",
-    "symbol": "SOL",
-    "icon": "/css/image/solana.svg"
-  },
-  {
-    "name": "Shiba",
-    "symbol": "SHIB",
-    "icon": "/css/image/shiba.svg"
-  },
-  {
-    "name": "Binance",
-    "symbol": "BNB",
-    "icon": "/css/image/binance.svg"
-  },
-  {
-    "name": "XRP",
-    "symbol": "XRP",
-    "icon": "/css/image/xrp-logo.svg"
-  }
-];  
- var chartOptions = {
-		series: [],
-		chart: {
-			toolbar: {
-				show: true,
-				offsetX: -50,
-				offsetY: 0,
-				tools: {
-					download: false,
-					selection: true,
-					zoom: true,
-					zoomin: true,
-					zoomout: true,
-					pan: true,
-					reset: true | '<img src="/static/icons/reset.png" width="20">',
-					customIcons: []
-				}
-			},
-			height: 525,
-			type: 'line',
-			animations: { enabled: false }
-		},
-		grid: {
-			show: false,
-			borderColor: '#f0e68c',
-			strokeDashArray: 1,
-			opacity: 0.5,
-			padding: {
-				right: 60,
-			},
-		},
-		colors: ["#FFFFFF", "#0000ff", "#ff0000", "#00ff00", "#ffff00", "#ffa500"],
-		fill: {
-			type: 'solid',
-			opacity: [1, 1],
-		},
-		stroke: {
-			curve: 'straight',
-			width: 2.25
-		},
-		markers: {
-			colors: '#ffffff',
-			size: 2,
-			shape: 'square',
-		},
-		title: {
-			text: '',
-			align: 'center',
-					margin: 0,
-					offsetY: 20,
-					style: {
-						fontWeight: 'bold',
-					},
-		},
-		subtitle: {
-			text: 'copyright LibVol.com',
-			align: 'right',
-			margin: 10,
-			offsetX: -50,
-			offsetY: 30,
-			floating: false,
-			style: {
-				fontSize: '10px',
-				fontWeight: 'normal',
-				color: '#9699a2'
-			},
-		},
-		dataLabels: {
-			enabled: false
-		},
-		xaxis: {
-			labels: {
-				rotate: 0,
-				rotateAlways: true,
-				minHeight: 0,
-				style: {
-					fontSize: '12px',
-				},
-			},
-			type: 'category',
-			axisBorder: {
-				show: true,
-				color: '#ffffff',
-				height: 3,
-				width: '100%',
-				offsetX: 0,
-				offsetY: 0
-			},
-		},
-		legend: {
-		   show:true,
-		   fontSize: '12px',
-    	   showForSingleSeries: true,
-    	   labels: {
-    	          colors: 'White',
-    	          useSeriesColors: false
-    	   },
-    	      markers: {
-    	          width: 12,
-    	          height: 2
-    	      },
-    	    formatter: function(seriesName, opts) {
-    	    	img= getCountryFlag(seriesName);
-    	         return [img , seriesName];
-    	    }
-    	  },
-		yaxis: [{
-			labels: {
-				style: {
-					fontSize: '12px',
-				}
-			},
-			axisBorder: {
-				width: 3,
-				show: true,
-				color: '#ffffff',
-				offsetX: 0,
-				offsetY: 0
-			},
-
-		}],
-		noData: {
-			text: '',
-			align: 'center',
-			verticalAlign: 'middle',
-			offsetX: 0,
-			offsetY: 0,
-			style: {
-				color: undefined,
-				fontSize: '14px',
-				fontFamily: undefined
-			}
-		},
-	/*	annotations: {
-		  yaxis: [{
-		    y: 0,
-			strokeDashArray: 0,
-			offsetX: 0,
-			 width: '100%',
-			 borderColor: '#00E396',
-		      label: {
-			    position: 'left',
-			    offsetX: -10,
-                offsetY: 0,
-		        borderColor: '#172568',
-		        style: {
-		          color: '#fff',
-		          background: '#172568'
-		        },
-		        text: ''
-		      }
-		  }]
-		}*/
-	}; 
-$(document).ready(() => {
-	
-  const $dropdown = $('#cryptoDropdown');
-  
-  cryptoList.forEach(crypto => {
-    const item = `
-      <li>
-        <a class="dropdown-item" href="#" data-symbol="${crypto.symbol}">
-          <img src="${crypto.icon}" alt="${crypto.name} Logo" width="35" height="35" class="me-2">
-          ${crypto.name}
-        </a>
-      </li>
-    `;
-    $dropdown.append(item);
-  });
-
-  // Optional: handle selection
-  $dropdown.on('click', '.dropdown-item', function (e) {
-    e.preventDefault();
-    const name = $(this).text().trim();
-    const icon = $(this).find('img').attr('src');
-    const symbol = $(this).data('symbol');
-
-    console.log("Selected:", { name, symbol, icon });
-	cryptoCurrency=symbol;
-    const parent = $(this).closest('.dropdown');
-    parent.find('.parent-icon img').attr('src', icon);
-    parent.find('.menu-title').text(name);
-    
-    	updateChart();
-  });
-
-	var ohlcBox = document.getElementById("ohlc-info");
-
-	let dataParam = {
-    symbol: "BTC",                       // extracted from table name
-    interval: "1h",
-    fromDate: fromdate,
-    toDate: todate,
-    downsample: "auto",
-    tableName:'cr_btc_high_low',
-    page:0,
-    size:windowSize,
-    asc:false
-  };
-	$.ajax({
-		type: "POST",
-		contentType: "application/json; charset=utf-8",
-		url: "/api/graph/candles",
-		data: JSON.stringify(dataParam),
-		dataType: 'json',
-		timeout: 600000,
-		success: function(response) {
-			
-			totalPages = response.totalPages; // Update total pages
-            page++; // Increase page number
-			console.log(response);
-
-			/*response.content.forEach(item => {
-				item.y = JSON.parse(item.y);
-			});*/
-
- 			allData = response.content.concat(allData);
-			let data2 = response.content;
-			let volumeData = [];
-			let volumeColors = []; // ✅ Array to hold bar colors
-			let totalDataPoints =  response.content.length;
-    		let min = totalDataPoints - windowSize <0 ? 0 :totalDataPoints - windowSize;
-    		let max = totalDataPoints
-			originalXAxisOptions.min=min;
-			originalXAxisOptions.max=max;
-			
-			originalXAxisLineOptions.min=min;
-			originalXAxisLineOptions.max=max;
-			
-  		   let newYLimits = calculateYLimitsCandleSticks(response.content, min, max,10);
-      		originalYAxisOptions.min = newYLimits.min;
-			originalYAxisOptions.max = newYLimits.max;
-			
-
-			// ✅ Loop through candle data and assign volume colors
-			response.content.forEach((candle, index) => {
-				let open = candle.y[0];
-				let close = candle.y[3];
-				let volume = data2[index]; // Ensure volume aligns with the candle data
-
-				volumeData.push({
-					x: candle.x, // Timestamp
-					y: volume    // Volume value
-				});
-
-				// ✅ Set color based on bullish/bearish candle
-				volumeColors.push(close >= open ? "#00E396" : "#FF4560"); // Green for up, Red for down
-			});
-
-			// Extract last candle's OHLC values
-			let lastCandleIndex = response.content.length - 1;
-			let lastCandle = response.content[lastCandleIndex];
-
-			let open = lastCandle.y[0]; // Open
-			let high = lastCandle.y[1]; // High
-			let low = lastCandle.y[2]; // Low
-			let close = lastCandle.y[3]; // Close
-
-			// Set initial OHLC info
-			document.getElementById("date").textContent = lastCandle.x;
-			document.getElementById("open").textContent = open;
-			document.getElementById("high").textContent = high;
-			document.getElementById("low").textContent = low;
-			document.getElementById("close").textContent = close;
-			$("#ohlc-info").removeClass("d-none");
-			
-			options.series = [{
-				data: response.content
-			}];
-			chart = new ApexCharts(document.querySelector("#main-chart"), options);
-			chart.render();
-
-			optionsLine.series = [{
-				name: 'volume',
-				type: 'bar',
-				data: data2
-			}];
-
-			optionsLine.colors = volumeColors;
-
-			chartLine = new ApexCharts(document.querySelector("#chart-line"), optionsLine);
-			//chartLine.render();
-
-
-			$("#loading-spinner").hide();
-
-		},
-		error: function(e) {
-
-			console.log("ERROR : ", e);
-
+  options.yaxis = {
+    ...options.yaxis,
+    min: yL.min,
+    max: yL.max,
+    labels: { ...options.yaxis.labels, formatter: (v) => fmtNum(v) ,
+        style: { ...(options.yaxis.labels?.style || {}), colors: '#fff' }  
 		}
-	});
+  };
+  await chart.updateOptions({ yaxis: options.yaxis }, applyAnim, false);
+}
 
+/* ---------- Prefetch (prepend) ---------- */
+async function prefetchOlderSilent() {
+  if (isFetching) return 0;
+  isFetching = true;
+  showSpinner();
+  try {
+    const resp = await getCandles({
+      symbol: resolveBinanceSymbol(),
+      interval: selectedInterval,
+      fromDate: fromdate, toDate: new Date(BINANCE_CURSOR_MS || Date.now()).toISOString(),
+      downsample: "auto", tableName: 'cr_btc_high_low',
+      page, size, asc: false
+    });
+    page++;
 
-// getDataChart2(2);
+    const before = allData.length;
+    const incoming = resp.content || [];
+    if (!incoming.length) return 0;
 
+    allData = incoming.concat(allData);
+    const added = allData.length - before;
+
+    const newMin = (options.xaxis.min ?? 0) + added;
+    const newMax = (options.xaxis.max ?? before) + added;
+    options.xaxis = { ...options.xaxis, min: newMin, max: newMax };
+
+    chart.updateSeries([{ data: allData }], false);
+    chart.updateOptions({ xaxis: options.xaxis }, false, false);
+
+    refreshLatestIndexAndMaybeUpdatePill();
+    updateLoadedLabel();
+    return added;
+  } catch (e) {
+    console.error('Fetch older failed:', e);
+    return 0;
+  } finally {
+    hideSpinner();
+    isFetching = false;
+  }
+}
+
+/* ---------- Range handlers ---------- */
+function onRangeEvent({ xaxis }) {
+  if (!xaxis) return;
+
+  const prevC = ((options.xaxis.min ?? 0) + (options.xaxis.max ?? 0)) / 2;
+  const nowC  = (xaxis.min + xaxis.max) / 2;
+  const d = nowC - prevC;
+  if (panDir === 0) { if (d > 0.5) panDir = +1; else if (d < -0.5) panDir = -1; }
+
+  let minIdx = Math.max(0, Math.floor(xaxis.min));
+  let maxIdx = Math.min(allData.length, Math.ceil(xaxis.max));
+  if (maxIdx <= minIdx) maxIdx = Math.min(allData.length, minIdx + Math.max(1, windowSize));
+
+  options.xaxis = { ...options.xaxis, min: minIdx, max: maxIdx };
+  if (chart) chart.updateOptions({ xaxis: options.xaxis }, false, false);
+
+  if (panDir === -1 && isNearLeftIndex(minIdx, maxIdx)) {
+    startPrefetchLoop(-1, { min: minIdx, max: maxIdx });
+  }
+  scheduleIdle();
+}
+function scheduleIdle(){ clearTimeout(idleTimer); idleTimer = setTimeout(onIdle, PAN_IDLE_MS); }
+async function onIdle() {
+  const minIdx = options.xaxis.min ?? 0;
+  const maxIdx = options.xaxis.max ?? allData.length;
+  if (!(Number.isFinite(minIdx) && Number.isFinite(maxIdx)) || maxIdx <= minIdx) { panDir = 0; cancelPrefetchLoop(); return; }
+
+  if (panDir === -1 && isNearLeftIndex(minIdx, maxIdx)) {
+    const added = await prefetchOlderSilent();
+    if (added > 0) {
+      options.xaxis = { ...options.xaxis, min: minIdx + added, max: maxIdx + added };
+      chart.updateOptions({ xaxis: options.xaxis }, false, false);
+    }
+  }
+  await recomputeYForCurrentWindow(true);
+  panDir = 0; cancelPrefetchLoop();
+}
+
+/* ---------- Labels / OHLC pill ---------- */
+function updateLoadedLabel() {
+  const el = byId('loadedLbl');
+  if (!el) return;
+  if (!allData.length) { el.textContent = '-'; return; }
+  const firstISO = allData[0].x, lastISO = allData[allData.length - 1].x;
+  el.textContent = `${formatForInterval(firstISO, selectedInterval)} … ${formatForInterval(lastISO, selectedInterval)} (len ${allData.length})`;
+}
+
+/* ---------- Reload (timeframe change) ---------- */
+async function reloadFromBinance() {
+  showSpinner();
+  try {
+    page = 0; allData = []; panDir = 0; cancelPrefetchLoop();
+    BINANCE_CURSOR_MS = null;
+
+    const resp = await getCandles({
+      symbol: resolveBinanceSymbol(),
+      interval: selectedInterval,
+      fromDate: todate, toDate: new Date().toISOString(),
+      downsample: "auto", tableName: 'cr_btc_high_low',
+      page, size, asc: false
+    });
+    totalPages = resp.totalPages; page++;
+    allData = (resp.content || []).concat(allData);
+
+    const total = allData.length;
+    const min = Math.max(0, total - windowSize);
+    const max = total;
+
+    options.series = [{ data: allData }];
+    options.xaxis = { ...options.xaxis, min: min, max: max };
+
+    const yL = calculateYLimitsCandleSticks(allData, min, max, 10);
+    options.yaxis = {
+      ...options.yaxis,
+      min: yL.min,
+      max: yL.max,
+      labels: { ...options.yaxis.labels, formatter: (v) => fmtNum(v) }
+    };
+
+    if (!chart) {
+      if (typeof ApexCharts === "undefined") { console.error("ApexCharts not loaded"); hideSpinner(); return; }
+      const container = document.querySelector("#main-chart");
+      if (!container) { console.warn("#main-chart not found"); hideSpinner(); return; }
+      chart = new ApexCharts(container, options);
+      await chart.render();
+    } else {
+      await chart.updateOptions({
+        series: [{ data: allData }],
+        xaxis: options.xaxis,
+        yaxis: options.yaxis
+      }, true, false);
+    }
+
+    refreshLatestIndexAndMaybeUpdatePill();
+    updateLoadedLabel();
+  } catch (e) {
+    console.error('Reload failed:', e);
+  } finally {
+    hideSpinner();
+  }
+}
+
+/* ---------- PUBLIC: timeframe buttons ---------- */
+window.changeTimeframe = async function(tf) {
+  const group = document.querySelector('.btn-group');
+  if (group) {
+    group.querySelectorAll('.btn').forEach(btn => btn.classList.remove('active'));
+    const btn = Array.from(group.querySelectorAll('.btn'))
+      .find(b => (b.textContent || '').trim().toLowerCase() === tf.toLowerCase());
+    if (btn) btn.classList.add('active');
+  }
+  selectedInterval = tf;
+  await reloadFromBinance();
+};
+
+/* ---------- Bootstrap ---------- */
+document.addEventListener('DOMContentLoaded', async () => {
+  showSpinner();
+  try {
+    const active = document.querySelector('.btn-group .btn.active');
+    if (active) selectedInterval = (active.textContent || '1h').trim();
+
+    page = 0;
+    const resp = await getCandles({
+      symbol: resolveBinanceSymbol(),
+      interval: selectedInterval,
+      fromDate: fromdate,
+      toDate: todate,
+      downsample: "auto",
+      tableName: 'cr_btc_high_low',
+      page: 0,
+      size: size,
+      asc: false
+    });
+    totalPages = resp.totalPages;
+    page++;
+
+    allData = (resp.content || []).concat(allData);
+
+    const total = allData.length;
+    const min = Math.max(0, total - windowSize);
+    const max = total;
+
+    options.series = [{ data: allData }];
+    options.xaxis  = { ...baseXAxis, min: min, max: max };
+    const yL = calculateYLimitsCandleSticks(allData, min, max, 10);
+    options.yaxis  = { ...baseYAxis, min: yL.min, max: yL.max };
+
+    if (typeof ApexCharts === "undefined") { console.error("ApexCharts not loaded"); hideSpinner(); return; }
+    const container = document.querySelector("#main-chart");
+    if (!container) { console.warn("#main-chart not found"); hideSpinner(); return; }
+
+    chart = new ApexCharts(container, options);
+    await chart.render();
+
+    refreshLatestIndexAndMaybeUpdatePill();
+    updateLoadedLabel();
+  } catch (e) {
+    console.error('Initial load failed:', e);
+  } finally {
+    hideSpinner();
+  }
 });
 
-function changeTimeframe(timeframe) {
-	// Remove 'active' class from all buttons and add it to the clicked one
-	document.querySelectorAll(".btn-group .btn").forEach(btn => btn.classList.remove("active"));
-	event.target.classList.add("active");
+/* ---------- Prefetch orchestrator ---------- */
+async function startPrefetchLoop(direction, currentRange) {
+  const token = { id: ++prefetchToken.id, dir: direction };
+  prefetchToken = token;
+  let steps = 0;
+  while (steps < PREFETCH_MAX_STEPS && token.id === prefetchToken.id && token.dir === direction) {
+    const nearLeft = isNearLeftIndex(currentRange.min, currentRange.max);
+    if (!(direction === -1 && nearLeft)) break;
 
-	// Update chart data with the selected timeframe
-	updateChart();
-}
+    const added = await prefetchOlderSilent();
+    if (added <= 0) break;
 
-function updateChart() {
-	 fromdate = formatDate(yesterdayMidnight); // Start of yesterday
-     todate = formatDate(todayMidnight);        // Start of today (end of yesterday's full interval)
+    currentRange.min += added;
+    currentRange.max += added;
 
-	 page = 0;
-	
-	 totalPages = Infinity;
-	 windowSize = 50;
-	 selectedInterval =$(".btn-group .btn.active").text().trim()	;
-	 allData = []; // Store fetched data
-	 
-	var ohlcBox = document.getElementById("ohlc-info");
-	
-	  let dataParam = {
-		    symbol: "BTC",                       // extracted from table name
-		    interval: "1h",
-		    fromDate: fromdate,
-		    toDate: todate,
-		    downsample: "auto",
-		    tableName:'cr_btc_high_low',
-		    page:page,
-		    size:size,
-		    asc:false
-		  };
-	// Show the spinner before the request
-	$("#loading-spinner").show();
+    chart.updateSeries([{ data: allData }], false);
+    chart.updateOptions({ xaxis: options.xaxis }, false, false);
 
-	$.ajax({
-		type: "POST",
-		contentType: "application/json; charset=utf-8",
-		url: "/api/graph/candles",
-		data: JSON.stringify(dataParam),
-		dataType: 'json',
-		timeout: 600000,
-		success: function(response) {
-			
-			
-			totalPages = response.totalPages; // Update total pages
-            page++; // Increase page number
-			console.log(response);
-
-			response.data.forEach(item => {
-				item.y = JSON.parse(item.y);
-			});
-
- 			allData = response.content.concat(allData);
-			let data2 = response.contentVolume.data;
-			let volumeData = [];
-			let volumeColors = []; // ✅ Array to hold bar colors
-			let totalDataPoints =  response.content.length;
-    		let min = totalDataPoints - windowSize  <0 ? 0 : totalDataPoints - windowSize;
-    		let max = totalDataPoints
-			originalXAxisOptions.min=min;
-			originalXAxisOptions.max=max;
-			
-  		   let newYLimits = calculateYLimitsCandleSticks(response.data, min, max,10);
-      		originalYAxisOptions.min = newYLimits.min;
-			originalYAxisOptions.max = newYLimits.max;
-			
-
-			// ✅ Loop through candle data and assign volume colors
-			response.data.forEach((candle, index) => {
-				let open = candle.y[0];
-				let close = candle.y[3];
-				let volume = data2[index]; // Ensure volume aligns with the candle data
-
-				volumeData.push({
-					x: candle.x, // Timestamp
-					y: volume    // Volume value
-				});
-
-				// ✅ Set color based on bullish/bearish candle
-				volumeColors.push(close >= open ? "#00E396" : "#FF4560"); // Green for up, Red for down
-			});
-
-			// Extract last candle's OHLC values
-			let lastCandleIndex = response.content.length - 1;
-			let lastCandle = response.content[lastCandleIndex];
-
-			let open = lastCandle.y[0]; // Open
-			let high = lastCandle.y[1]; // High
-			let low = lastCandle.y[2]; // Low
-			let close = lastCandle.y[3]; // Close
-
-			// Set initial OHLC info
-			document.getElementById("date").textContent = lastCandle.x;
-			document.getElementById("open").textContent = open;
-			document.getElementById("high").textContent = high;
-			document.getElementById("low").textContent = low;
-			document.getElementById("close").textContent = close;
-			$("#ohlc-info").removeClass("d-none");
-			
-			options.series = [{
-				data: response.content
-			}];
-			if (!chart) {
-			chart = new ApexCharts(document.querySelector("#main-chart"), options);
-			chart.render();
-				optionsLine.series = [{
-				name: 'volume',
-				type: 'bar',
-				data: data2
-			}];
-
-			optionsLine.colors = volumeColors;
-
-			chartLine = new ApexCharts(document.querySelector("#chart-line"), optionsLine);
-			}
-			else {
-				let totalDataPoints =  response.content.length;
-	    		let min = totalDataPoints - windowSize < 0 ? 0 : totalDataPoints - windowSize;
-	    		let max = totalDataPoints;
-				originalXAxisOptions.min=min;
-			    originalXAxisOptions.max=max;
-				
-				
-	  		   let newYLimits = calculateYLimitsCandleSticks(response.data, min, max,10);
-	      		
-				originalYAxisOptions.min = newYLimits.min;
-			    originalYAxisOptions.max = newYLimits.max;
-			    
-				 chart.updateOptions({
-				  series:[{
-						data:allData
-					}],
-					 xaxis:originalXAxisOptions,
-			     	 yaxis:originalYAxisOptions
-			    });
-				
-				$("#loading-spinner").hide();
-			}
-			
-		
-
-		},
-		error: function(e) {
-			console.log("ERROR:", e);
-		}
-	});
-
-}
-
-function formatDate(date) {
-  return date.getUTCFullYear() + "-" +
-    String(date.getUTCMonth() + 1).padStart(2, '0') + "-" +
-    String(date.getUTCDate()).padStart(2, '0') + "T" +
-    String(date.getUTCHours()).padStart(2, '0') + ":" +
-    String(date.getUTCMinutes()).padStart(2, '0') + ":00Z";
-}
-function getDataChart2(checkedItemIds) {
-
-	const chartId = '2';
-	const chartKey = `chart${chartId}`;
-	const manager = ChartManager.instances[chartKey] || new ChartManager(chartKey, chartOptions, `#crypto${chartId}-container`);
-
-	const timeRange = 'Daily';// getActiveTimeRange();
-	const fromDate = new Date();
-	
-	
-	fromDate.setMonth(fromDate.getMonth() - 6);
-	fromDate.setHours(0, 0, 0, 0);
-
-	manager.state.defaultFromDate = fromDate;
-	manager.state.defaultToDate = new Date(); // Today
-
-	if (manager && manager.chart) {
- 		loadChart2Data(manager,'Daily',2);
-	} else {
-	manager.render().then(() => {
-		
-		 $('#chart-option-chart2').append(`
-		 	<button
-			  type="button"
-			  class="menu-header collapsed chart-menu-toggle btn w-100 mb-2 text-start"
-			  data-pcollapse="toggle"
-			  data-target="#checkboxes-container-chart-2"
-			  aria-expanded="false"
-			  aria-controls="checkboxes-container-chart-2">
-			  <span class="left">
-			    <span class="label">Select Factor</span>
-			  </span>
-			  <i class="fa-solid fa-chevron-down chev ms-auto"></i>
-			</button>
-		    <div id="checkboxes-container-chart-2" class="collapse"></div>
-		    <div class="col-12 d-flex">
-					<input  aria-expanded="true" aria-controls="collapseFilter" class="btn btn-primary mr-1 mb-1" style="margin-right: 1rem!important; color:white;" type="button" id="show-chart-2" value="Show" />
-					<input id="clear-filter-chart-2" type="button" style="margin-right: 1rem!important;" class="btn btn-light-secondary mr-1 mb-1" value="Clear" />
-			</div>`);
-			
-	});
-   	 loadChart2Data(manager,'Daily',2);
-    }
-}
-async function loadChart2Data(manager,timeRange,chartId=1){
-	    	
-				let earliestfromdate = new Date(fromdate);
-				let earliesttoadate = new Date(fromdate);
-				   earliestfromdate.setDate(earliestfromdate.getDate() - 1);
-				   
-				  fromdate = formatDate(earliestfromdate);
-				  todate = formatDate(earliesttoadate);
-				 let page=0;
-				 
-				  let dataParam = {
-				    "fromDate": fromdate,
-				    "toDate": todate, // your global toDate variable
-				    "cryptoCurrencyCode": cryptoCurrency,
-				    "period": selectedInterval,
-				    interval: timeRange,
-				    page: page,
-				    size: size
-				  };
-			
-				let api = '/getCandleGraphData';
-				
-				// Load chart
-				manager.loadData({
-				    service: "cryptos",
-					api: api,
-					name: "",
-					dataParam: dataParam,
-				});
-			
-}
-function fetchMoreCandlestickData(xaxis) {
-  isFetching = true;
-  
-  // Update your fromDate based on the earliest data in allData
-  if(totalPages < page)
-  {
-	  let earliestfromdate = new Date(fromdate);
-	  let earliesttoadate = new Date(fromdate);
-	   earliestfromdate.setDate(earliestfromdate.getDate() - 1);
-	  fromdate = formatDate(earliestfromdate);
-	  todate = formatDate(earliesttoadate);
-	  page=0;
+    steps++;
+    await new Promise(r => setTimeout(r, PREFETCH_COOLDOWN));
   }
-  /*let dataParam = {
-    "fromDate": fromdate,
-    "toDate": todate, // your global toDate variable
-    "cryptoCurrencyCode": cryptoCurrency,
-    "period": selectedInterval,
-    page: page,
-    size: size
-  };*/
-  let dataParam = {
-    symbol: "BTC",                       // extracted from table name
-    interval: "1h",
-    fromDate: fromdate,
-    toDate: todate,
-    downsample: "auto",
-    tableName:'cr_btc_high_low',
-    page:page,
-    size:size,
-    asc:false
-  };
-
-  $.ajax({
-    type: "POST",
-    contentType: "application/json; charset=utf-8",
-    url: "/api/graph/candles",
-    data: JSON.stringify(dataParam),
-    dataType: 'json',
-    timeout: 600000,
-    success: function(response) {
-		console.log(fromdate,todate);
-		totalPages = response.totalPages; // Update total pages
-        page++; // Increase page number
-	    console.log(response);
-			
-			$("#loading-spinner").hide();
-    	 	 // Process response and prepend to your allData array
-      		/*response.data.forEach(item => {
-				item.y = JSON.parse(item.y);
-			});*/
-			
-            let oldData=allData.length;
- 			allData = response.content.concat(allData);
-			//let data2 = response.contentVolume.data;
-			let volumeData = [];
-			let volumeColors = []; // ✅ Array to hold bar colors
-			
-			let totalDataPoints = allData.length;
-			let rangeMin = xaxis.min;
-			let rangeMax = xaxis.max;
-			
-			// Make sure we stay within bounds
-			rangeMin = Math.max(0, rangeMin);
-			rangeMax = Math.min(totalDataPoints, rangeMax);
-			
-			// Fallback if invalid range
-			if (rangeMax <= rangeMin) {
-			  rangeMin = Math.max(0, totalDataPoints - windowSize);
-			  rangeMax = totalDataPoints;
-			  rangeMax = rangeMax - rangeMin;
-			  rangeMin =0;
-			}
-			
-			originalXAxisOptions.min = rangeMin;
-			originalXAxisOptions.max = rangeMax;
-			
-			let newYLimits = calculateYLimitsCandleSticks(allData, rangeMin, rangeMax, 10);
-			originalYAxisOptions.min = newYLimits.min;
-			originalYAxisOptions.max = newYLimits.max;
-			
-
-		/*	// ✅ Loop through candle data and assign volume colors
-			response.data.forEach((candle, index) => {
-				let open = candle.y[0];
-				let close = candle.y[3];
-				let volume = data2[index]; // Ensure volume aligns with the candle data
-
-				volumeData.push({
-					x: candle.x, // Timestamp
-					y: volume    // Volume value
-				});
-
-				// ✅ Set color based on bullish/bearish candle
-				volumeColors.push(close >= open ? "#00E396" : "#FF4560"); // Green for up, Red for down
-			});
-*/
-			
-      chart.updateOptions({
-		  series:[{
-				data:allData
-			}],
-			 xaxis:originalXAxisOptions,
-	     	 yaxis:originalYAxisOptions
-	    });
-	    
-      page++;
-      isFetching = false;
-    },
-    error: function(e) {
-      console.log("Fetch error:", e);
-      isFetching = false;
-    }
-  });
 }
-function calculateYLimitsCandleSticks(data, xMin, xMax, marginPercentage) {
- 	   const visibleDataArray = data.slice(xMin, xMax);
-       const yValues = visibleDataArray.reduce((acc, point) => {
-	    if (Array.isArray(point.y)) {
-	      return acc.concat(point.y);
-	    } else {
-	      acc.push(point.y);
-	      return acc;
-	    }
-	  }, []);
-      let yMin = Math.min(...yValues);
-      let yMax = Math.max(...yValues);
-      // Add a little padding
-      const margin = (yMin - yMax) * (marginPercentage / 100);
-
-      return { min: yMin -  Math.abs(margin), max: yMax +  Math.abs(margin) };
-    }
-    
-  function calculateYLimits(data, xMin, xMax, padding = 5) {
-      const visibleData = data.filter(point => point.id >= xMin && point.id <= xMax);
-      const yValues = visibleData.map(point => point.y);
-      let yMin = Math.min(...yValues);
-      let yMax = Math.max(...yValues);
-      // Add a little padding
-      return { min: yMin - padding, max: yMax + padding };
-    }
-    
-    function calculateYAxisRangeFromVisibleData(data, marginPercentage) {
-	  // Gather all y values from the visible data
-	  const yValues = data.reduce((acc, point) => {
-	    if (Array.isArray(point.y)) {
-	      return acc.concat(point.y);
-	    } else {
-	      acc.push(point.y);
-	      return acc;
-	    }
-	  }, []);
-	  let yMin = Math.min(...yValues);
-	  let yMax = Math.max(...yValues);
-	  // Calculate a margin based on the difference
-	  const margin = (yMax - yMin) * (marginPercentage / 100);
-	  return { min: yMin - margin, max: yMax + margin };
-	}
-
-    

@@ -83,7 +83,7 @@
 
 .apexcharts-tooltip.apexcharts-theme-dark {
   color: #fff;
-  background: rgba(30,30,30,.8)
+  background: #071424;
 }
 
 .apexcharts-tooltip * {
@@ -102,7 +102,7 @@
 }
 
 .apexcharts-tooltip.apexcharts-theme-dark .apexcharts-tooltip-title {
-  background: rgba(0,0,0,.7);
+  background: #071424;
   border-bottom: 1px solid #333
 }
 
@@ -215,7 +215,7 @@
 }
 
 .apexcharts-xaxistooltip.apexcharts-theme-dark {
-  background: rgba(0,0,0,.7);
+  background: #071424;
   border: 1px solid rgba(0,0,0,.5);
   color: #fff
 }
@@ -284,7 +284,7 @@
 }
 
 .apexcharts-yaxistooltip.apexcharts-theme-dark {
-  background: rgba(0,0,0,.7);
+  background: #071424;
   border: 1px solid rgba(0,0,0,.5);
   color: #fff
 }
@@ -515,7 +515,7 @@
 }
 
 .apexcharts-theme-dark .apexcharts-menu {
-  background: rgba(0,0,0,.7);
+  background: #071424;
   color: #fff
 }
 
