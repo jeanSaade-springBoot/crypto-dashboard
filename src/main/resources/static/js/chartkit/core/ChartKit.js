@@ -1,150 +1,15 @@
 /****************************************************
- * chartkit.js — Reusable charting module (UMD-style)
- * --------------------------------------------------
- * Features:
- * - Multi-chart, multi-series
- * - Per-series type (candlestick, line, bar, area, etc.)
- * - Pass ANY ApexCharts options via `apex` (deep-merged)
- * - Optional Binance OHLC datasource with older prefetch
- * - Smart Y-range over mixed series
- * - Dark tooltips, white axes, axis tooltip date formatting
- * - OHLC pill (optional) for candlestick series
- * - Clean number formatting (no left-zero padding)
+ * ChartKit Core (Plain JavaScript version)
  ****************************************************/
-
 (function (global) {
-  // =====================================================
-  // === Tiny Utilities ==================================
-  // =====================================================
-
-  const $ = (sel, root = document) => root.querySelector(sel);
-  const byId = (id) => document.getElementById(id);
-
-  const deepMerge = (target, source) => {
-    if (Array.isArray(source)) return source.slice();
-    if (source && typeof source === "object") {
-      const result = { ...(target || {}) };
-      for (const key of Object.keys(source)) {
-        result[key] = deepMerge(result[key], source[key]);
-      }
-      return result;
-    }
-    return source;
-  };
-
-  // =====================================================
-  // === Formatters ======================================
-  // =====================================================
-
-  const fmtNum = (n) =>
-    n == null || !isFinite(n)
-      ? "-"
-      : new Intl.NumberFormat("en-US", {
-          useGrouping: true,
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }).format(Number(n));
-
-  const pad2 = (n) => String(n).padStart(2, "0");
-
-  const toISO_utc = (date) =>
-    `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(
-      date.getUTCDate()
-    )}T${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}:00Z`;
-
-  const fmtISO_ymd_hm_utc = (iso) => {
-    const d = new Date(iso);
-    return `${d.getUTCFullYear()}/${pad2(d.getUTCMonth() + 1)}/${pad2(
-      d.getUTCDate()
-    )} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
-  };
-
-  const fmtISO_ymd_utc = (iso) => {
-    const d = new Date(iso);
-    return `${d.getUTCFullYear()}/${pad2(d.getUTCMonth() + 1)}/${pad2(
-      d.getUTCDate()
-    )}`;
-  };
-
-  const formatForInterval = (iso, interval) => {
-    const tf = (interval || "").toLowerCase();
-    return ["1d", "1w", "1wk", "1week"].includes(tf)
-      ? fmtISO_ymd_utc(iso)
-      : fmtISO_ymd_hm_utc(iso);
-  };
-
-  // =====================================================
-  // === Data Sources ====================================
-  // =====================================================
-
-  class DataSource {
-    // Interface:
-    // async fetchOlder(limit): returns { points: Array<SeriesPoint>, cursorMs?: number }
-    // setInterval(interval) (optional)
-  }
-
-  class BinanceOHLCSource extends DataSource {
-    constructor({ symbol = "BTCUSDT", interval = "1h", pageSize = 250 }) {
-      super();
-      this.symbol = symbol.toUpperCase();
-      this.interval = interval;
-      this.pageSize = pageSize;
-      this.cursorMs = null;
-      this._base = "https://api.binance.com/api/v3/klines";
-    }
-
-    setInterval(interval) {
-      this.interval = interval;
-      this.cursorMs = null;
-    }
-
-    async fetchOlder(limit = this.pageSize) {
-      const endTimeMs = Number.isFinite(this.cursorMs)
-        ? this.cursorMs - 1
-        : Date.now();
-
-      const url = new URL(this._base);
-      url.searchParams.set("symbol", this.symbol);
-      url.searchParams.set("interval", this.interval);
-      url.searchParams.set("limit", String(Math.max(1, Math.min(1000, limit))));
-      url.searchParams.set("endTime", String(endTimeMs));
-
-      let res;
-      try {
-        res = await fetch(url.toString(), { mode: "cors" });
-      } catch (err) {
-        throw new Error(`Binance fetch error: ${err?.message || err}`);
-      }
-
-      if (!res.ok) {
-        if (res.status === 429) throw new Error("Binance rate limit (429).");
-        throw new Error(`Binance ${res.status} ${res.statusText}`);
-      }
-
-      const arr = await res.json();
-      if (!Array.isArray(arr) || arr.length === 0) return { points: [] };
-
-      const points = arr.map((k) => ({
-        _openMs: k[0],
-        x: new Date(k[0]).toISOString(),
-        y: [+k[1], +k[2], +k[3], +k[4]],
-      }));
-
-      this.cursorMs = arr[0][0];
-      return { points, cursorMs: this.cursorMs };
-    }
-  }
-
-  // =====================================================
-  // === Chart Core ======================================
-  // =====================================================
+  const { $, byId, deepMerge, fmtNum, formatForInterval } = global.ChartKitUtils;
+  const BinanceOHLCSource = global.BinanceOHLCSource;
 
   class ChartKit {
+    // -----------------------------------------------------
+    // === Static Registry =================================
+    // -----------------------------------------------------
     static registry = new Map();
-
-    // -----------------------------------------------------
-    // === Factory & Registry ==============================
-    // -----------------------------------------------------
 
     static create(cfg) {
       const inst = new ChartKit(cfg);
@@ -160,7 +25,6 @@
     // -----------------------------------------------------
     // === Constructor =====================================
     // -----------------------------------------------------
-
     constructor(cfg) {
       if (!cfg.key) throw new Error("ChartKit.create requires a unique 'key'");
       if (!cfg.containerId)
@@ -187,7 +51,7 @@
           (s) => s.dataSource instanceof BinanceOHLCSource
         )?.dataSource?.interval || "1h";
 
-      this.apexOptions = this.#makeDefaultApexOptions();
+      this.apexOptions = this.makeDefaultApexOptions();
       if (cfg.apex) this.apexOptions = deepMerge(this.apexOptions, cfg.apex);
 
       this.xTooltipFormat =
@@ -207,7 +71,6 @@
           return formatForInterval(iso, this.selectedInterval);
         });
 
-      // runtime state
       this.chart = null;
       this.isFetching = false;
       this.panDir = 0;
@@ -219,7 +82,6 @@
     // -----------------------------------------------------
     // === DOM Helpers =====================================
     // -----------------------------------------------------
-
     showSpinner() {
       const el = byId(this.spinnerId);
       if (el) el.classList.remove("hidden");
@@ -236,10 +98,9 @@
     }
 
     // -----------------------------------------------------
-    // === Apex Default Options ============================
+    // === Default Apex Options ============================
     // -----------------------------------------------------
-
-    #makeDefaultApexOptions() {
+    makeDefaultApexOptions() {
       const self = this;
       return {
         chart: {
@@ -263,16 +124,16 @@
             },
           },
           events: {
-            scrolled: (_ctx, p) => self.#onRangeEvent(p),
-            selection: (_ctx, p) => self.#onRangeEvent(p),
-            zoomed: (_ctx, p) => self.#onRangeEvent(p),
+            scrolled: (_ctx, p) => self.onRangeEvent(p),
+            selection: (_ctx, p) => self.onRangeEvent(p),
+            zoomed: (_ctx, p) => self.onRangeEvent(p),
             dataPointMouseEnter: (evt, _ctx, { seriesIndex, dataPointIndex, w }) => {
               self.hoverActive = true;
-              self.#maybeUpdateOHLCFromIndex(seriesIndex, dataPointIndex, w);
+              self.maybeUpdateOHLCFromIndex(seriesIndex, dataPointIndex, w);
             },
             dataPointMouseLeave: () => {
               self.hoverActive = false;
-              self.#showLatestOHLCForAll();
+              self.showLatestOHLCForAll();
             },
           },
         },
@@ -352,12 +213,9 @@
       };
     }
 
-    // (Rest of code continues — event handling, prefetch, Y recalculation, etc.)
-    // To keep within message limits, do you want me to paste the remaining half now (prefetching, OHLC label logic, range events, helpers, exports)?
-    // =====================================================
+    // -----------------------------------------------------
     // === Public API ======================================
-    // =====================================================
-
+    // -----------------------------------------------------
     async changeTimeframe(tf) {
       this.selectedInterval = tf;
       this.seriesDefs.forEach((s) => {
@@ -381,39 +239,34 @@
       ChartKit.registry.delete(this.key);
     }
 
-    // =====================================================
+    // -----------------------------------------------------
     // === Initialization ==================================
-    // =====================================================
-
+    // -----------------------------------------------------
     async init() {
-      await this.#initialLoad();
+      await this.initialLoad();
     }
 
-    async #initialLoad() {
+    async initialLoad() {
       this.showSpinner();
       try {
-        // Scaffold empty series
         this.apexOptions.series = this.seriesDefs.map((s) => ({
           name: s.name,
           type: s.type,
           data: [],
         }));
 
-        // Fetch first data page for all sources
-        await this.#fetchOnePageForAll();
+        await this.fetchOnePageForAll();
 
-        // Fill real series data
         this.apexOptions.series = this.seriesDefs.map((s) => ({
           name: s.name,
           type: s.type,
           data: s.data,
         }));
 
-        // Compute initial x/y ranges
-        const total = this.#maxLength();
+        const total = this.maxLength();
         const min = Math.max(0, total - this.windowSize);
         const max = total;
-        const yL = this.#calcYLimits(min, max, 10);
+        const yL = this.calcYLimits(min, max, 10);
 
         this.apexOptions.xaxis = { ...this.apexOptions.xaxis, min, max };
         this.apexOptions.yaxis = { ...this.apexOptions.yaxis, min: yL.min, max: yL.max };
@@ -424,8 +277,8 @@
         this.chart = new ApexCharts(container, this.apexOptions);
         await this.chart.render();
 
-        this.#refreshLatestOHLCLabels();
-        this.#updateLoadedLabel(min, max);
+        this.refreshLatestOHLCLabels();
+        this.updateLoadedLabel(min, max);
       } catch (e) {
         console.error(`[${this.key}] initial load failed:`, e);
       } finally {
@@ -441,12 +294,12 @@
           if (s.dataSource instanceof BinanceOHLCSource) s.dataSource.cursorMs = null;
         });
 
-        await this.#fetchOnePageForAll();
+        await this.fetchOnePageForAll();
 
-        const total = this.#maxLength();
+        const total = this.maxLength();
         const min = Math.max(0, total - this.windowSize);
         const max = total;
-        const yL = this.#calcYLimits(min, max, 10);
+        const yL = this.calcYLimits(min, max, 10);
 
         await this.chart.updateOptions(
           {
@@ -462,8 +315,8 @@
           false
         );
 
-        this.#refreshLatestOHLCLabels();
-        this.#updateLoadedLabel(min, max);
+        this.refreshLatestOHLCLabels();
+        this.updateLoadedLabel(min, max);
       } catch (e) {
         console.error(`[${this.key}] reload failed:`, e);
       } finally {
@@ -471,11 +324,10 @@
       }
     }
 
-    // =====================================================
+    // -----------------------------------------------------
     // === Fetch Helpers ===================================
-    // =====================================================
-
-    async #fetchOnePageForAll() {
+    // -----------------------------------------------------
+    async fetchOnePageForAll() {
       const tasks = this.seriesDefs.map(async (s) => {
         if (!s.dataSource) return;
         const resp = await s.dataSource.fetchOlder(s.dataSource.pageSize);
@@ -484,7 +336,7 @@
       await Promise.all(tasks);
     }
 
-    async #prefetchOlderSilent() {
+    async prefetchOlderSilent() {
       if (this.isFetching) return 0;
       this.isFetching = true;
       this.showSpinner();
@@ -499,8 +351,7 @@
           const incoming = resp.points || [];
           if (incoming.length) {
             s.data = incoming.concat(s.data);
-            const added = s.data.length - before;
-            addedMax = Math.max(addedMax, added);
+            addedMax = Math.max(addedMax, s.data.length - before);
           }
         }
 
@@ -516,7 +367,7 @@
           }));
           await this.chart.updateOptions({ series: seriesPayload, xaxis: this.apexOptions.xaxis }, false, false);
 
-          const yL = this.#calcYLimits(newMin, newMax, 10);
+          const yL = this.calcYLimits(newMin, newMax, 10);
           const yaxis = {
             ...this.apexOptions.yaxis,
             min: yL.min,
@@ -530,8 +381,8 @@
           this.apexOptions.yaxis = yaxis;
           await this.chart.updateOptions({ yaxis }, false, false);
 
-          this.#refreshLatestOHLCLabels();
-          this.#updateLoadedLabel(newMin, newMax);
+          this.refreshLatestOHLCLabels();
+          this.updateLoadedLabel(newMin, newMax);
         }
 
         return addedMax;
@@ -544,11 +395,10 @@
       }
     }
 
-    // =====================================================
+    // -----------------------------------------------------
     // === OHLC Labels =====================================
-    // =====================================================
-
-    #setOHLCColors(ids, bullish) {
+    // -----------------------------------------------------
+    setOHLCColors(ids, bullish) {
       const pos = "text-success",
         neg = "text-danger";
       ["open", "high", "low", "close"].forEach((k) => {
@@ -559,7 +409,7 @@
       });
     }
 
-    #writeOHLC(ids, candle, interval) {
+    writeOHLC(ids, candle, interval) {
       if (!ids || !candle) return;
       const [O, H, L, C] = candle.y;
       const setTxt = (id, v) => {
@@ -573,12 +423,12 @@
       setTxt(ids.low, fmtNum(L));
       setTxt(ids.close, fmtNum(C));
 
-      this.#setOHLCColors(ids, C >= O);
+      this.setOHLCColors(ids, C >= O);
       const pill = byId(ids.pillId);
       if (pill) pill.classList.remove("d-none");
     }
 
-    #maybeUpdateOHLCFromIndex(seriesIndex, dataPointIndex, w) {
+    maybeUpdateOHLCFromIndex(seriesIndex, dataPointIndex, w) {
       const sDef = this.seriesDefs[seriesIndex];
       if (!sDef || sDef.type !== "candlestick" || !sDef.ohlcPill) return;
 
@@ -588,38 +438,29 @@
         const H = w.globals.seriesCandleH[seriesIndex][dataPointIndex];
         const L = w.globals.seriesCandleL[seriesIndex][dataPointIndex];
         const C = w.globals.seriesCandleC[seriesIndex][dataPointIndex];
-        this.#writeOHLC(sDef.ohlcPill, { x: X, y: [O, H, L, C] }, this.selectedInterval);
+        this.writeOHLC(sDef.ohlcPill, { x: X, y: [O, H, L, C] }, this.selectedInterval);
       } catch {
         const c = sDef.data[dataPointIndex];
-        if (c) this.#writeOHLC(sDef.ohlcPill, c, this.selectedInterval);
+        if (c) this.writeOHLC(sDef.ohlcPill, c, this.selectedInterval);
       }
     }
 
-    #showLatestOHLCForAll() {
+    showLatestOHLCForAll() {
       for (const s of this.seriesDefs) {
         if (s.type !== "candlestick" || !s.ohlcPill) continue;
         const idx = s.data.length - 1;
-        if (idx >= 0) this.#writeOHLC(s.ohlcPill, s.data[idx], this.selectedInterval);
+        if (idx >= 0) this.writeOHLC(s.ohlcPill, s.data[idx], this.selectedInterval);
       }
     }
 
-    #refreshLatestOHLCLabels() {
-      if (!this.hoverActive) this.#showLatestOHLCForAll();
+    refreshLatestOHLCLabels() {
+      if (!this.hoverActive) this.showLatestOHLCForAll();
     }
 
-    // =====================================================
+    // -----------------------------------------------------
     // === Range & Prefetch Logic ==========================
-    // =====================================================
-
-    static EDGE_RATIO = 0.12;
-    static EDGE_MIN = 5;
-
-    #isNearLeftIndex(iMin, iMax) {
-      const span = Math.max(1, iMax - iMin);
-      return iMin <= Math.max(ChartKit.EDGE_MIN, Math.floor(span * ChartKit.EDGE_RATIO));
-    }
-
-    #onRangeEvent({ xaxis }) {
+    // -----------------------------------------------------
+    onRangeEvent({ xaxis }) {
       if (!xaxis) return;
 
       const prevCenter = ((this.apexOptions.xaxis.min ?? 0) + (this.apexOptions.xaxis.max ?? 0)) / 2;
@@ -632,38 +473,38 @@
       }
 
       let minIdx = Math.max(0, Math.floor(xaxis.min));
-      let maxIdx = Math.min(this.#maxLength(), Math.ceil(xaxis.max));
-      if (maxIdx <= minIdx) maxIdx = Math.min(this.#maxLength(), minIdx + Math.max(1, this.windowSize));
+      let maxIdx = Math.min(this.maxLength(), Math.ceil(xaxis.max));
+      if (maxIdx <= minIdx) maxIdx = Math.min(this.maxLength(), minIdx + Math.max(1, this.windowSize));
 
       this.apexOptions.xaxis = { ...this.apexOptions.xaxis, min: minIdx, max: maxIdx };
       this.chart.updateOptions({ xaxis: this.apexOptions.xaxis }, false, false);
 
       const hasSource = this.seriesDefs.some((s) => !!s.dataSource);
-      if (hasSource && this.panDir === -1 && this.#isNearLeftIndex(minIdx, maxIdx)) {
-        this.#startPrefetchLoop(-1, { min: minIdx, max: maxIdx });
+      if (hasSource && this.panDir === -1 && this.isNearLeftIndex(minIdx, maxIdx)) {
+        this.startPrefetchLoop(-1, { min: minIdx, max: maxIdx });
       }
 
-      this.#scheduleIdle();
+      this.scheduleIdle();
     }
 
-    #scheduleIdle() {
+    scheduleIdle() {
       clearTimeout(this.idleTimer);
-      this.idleTimer = setTimeout(() => this.#onIdle(), 140);
+      this.idleTimer = setTimeout(() => this.onIdle(), 140);
     }
 
-    async #onIdle() {
+    async onIdle() {
       const minIdx = this.apexOptions.xaxis.min ?? 0;
-      const maxIdx = this.apexOptions.xaxis.max ?? this.#maxLength();
+      const maxIdx = this.apexOptions.xaxis.max ?? this.maxLength();
 
       if (!Number.isFinite(minIdx) || !Number.isFinite(maxIdx) || maxIdx <= minIdx) {
         this.panDir = 0;
-        this.#cancelPrefetchLoop();
+        this.cancelPrefetchLoop();
         return;
       }
 
       const hasSource = this.seriesDefs.some((s) => !!s.dataSource);
-      if (hasSource && this.panDir === -1 && this.#isNearLeftIndex(minIdx, maxIdx)) {
-        const added = await this.#prefetchOlderSilent();
+      if (hasSource && this.panDir === -1 && this.isNearLeftIndex(minIdx, maxIdx)) {
+        const added = await this.prefetchOlderSilent();
         if (added > 0) {
           this.apexOptions.xaxis = {
             ...this.apexOptions.xaxis,
@@ -674,7 +515,7 @@
         }
       }
 
-      const yL = this.#calcYLimits(this.apexOptions.xaxis.min, this.apexOptions.xaxis.max, 10);
+      const yL = this.calcYLimits(this.apexOptions.xaxis.min, this.apexOptions.xaxis.max, 10);
       const yaxis = {
         ...this.apexOptions.yaxis,
         min: yL.min,
@@ -689,27 +530,26 @@
       await this.chart.updateOptions({ yaxis }, true, false);
 
       this.panDir = 0;
-      this.#cancelPrefetchLoop();
+      this.cancelPrefetchLoop();
     }
 
-    #cancelPrefetchLoop() {
+    cancelPrefetchLoop() {
       this.prefetchToken.id++;
       this.prefetchToken.dir = 0;
     }
 
-    async #startPrefetchLoop(direction, currentRange) {
+    async startPrefetchLoop(direction, currentRange) {
       const token = { id: ++this.prefetchToken.id, dir: direction };
       this.prefetchToken = token;
-
       const MAX_STEPS = 4;
       const COOLDOWN = 80;
       let steps = 0;
 
       while (steps < MAX_STEPS && token.id === this.prefetchToken.id && token.dir === direction) {
-        const nearLeft = this.#isNearLeftIndex(currentRange.min, currentRange.max);
+        const nearLeft = this.isNearLeftIndex(currentRange.min, currentRange.max);
         if (!(direction === -1 && nearLeft)) break;
 
-        const added = await this.#prefetchOlderSilent();
+        const added = await this.prefetchOlderSilent();
         if (added <= 0) break;
 
         currentRange.min += added;
@@ -720,22 +560,27 @@
       }
     }
 
-    // =====================================================
-    // === Helper Methods ==================================
-    // =====================================================
+    // -----------------------------------------------------
+    // === Helpers =========================================
+    // -----------------------------------------------------
+    isNearLeftIndex(iMin, iMax) {
+      const EDGE_RATIO = 0.12;
+      const EDGE_MIN = 5;
+      const span = Math.max(1, iMax - iMin);
+      return iMin <= Math.max(EDGE_MIN, Math.floor(span * EDGE_RATIO));
+    }
 
-    #maxLength() {
+    maxLength() {
       return this.seriesDefs.reduce((m, s) => Math.max(m, s.data.length), 0);
     }
 
-    #calcYLimits(iMin, iMax, marginPct) {
+    calcYLimits(iMin, iMax, marginPct) {
       const i0 = Math.max(0, Math.floor(iMin));
-      const i1 = Math.min(this.#maxLength(), Math.ceil(iMax));
+      const i1 = Math.min(this.maxLength(), Math.ceil(iMax));
       if (i1 <= i0) return { min: 0, max: 1 };
 
       let yMin = Infinity,
         yMax = -Infinity;
-
       for (const s of this.seriesDefs) {
         for (let i = i0; i < Math.min(i1, s.data.length); i++) {
           const pt = s.data[i];
@@ -751,13 +596,12 @@
           }
         }
       }
-
       if (!isFinite(yMin) || !isFinite(yMax) || yMax <= yMin) return { min: 0, max: 1 };
       const pad = Math.abs((yMax - yMin) * (marginPct / 100));
       return { min: yMin - pad, max: yMax + pad };
     }
 
-    #updateLoadedLabel(min, max) {
+    updateLoadedLabel(min, max) {
       if (!this.loadedLabelId) return;
       const firstISO = this.seriesDefs.find((s) => s.data[min]?.x)?.data[min]?.x;
       const lastISO = this.seriesDefs.find((s) => s.data[max - 1]?.x)?.data[max - 1]?.x;
@@ -766,17 +610,13 @@
         `${formatForInterval(firstISO, this.selectedInterval)} … ${formatForInterval(
           lastISO,
           this.selectedInterval
-        )} (len ${this.#maxLength()})`
+        )} (len ${this.maxLength()})`
       );
     }
   }
 
-  // =====================================================
-  // === Global Exports ==================================
-  // =====================================================
-
+  // -----------------------------------------------------
+  // === Global Export ===================================
+  // -----------------------------------------------------
   global.ChartKit = ChartKit;
-  global.ChartDataSource = DataSource;
-  global.BinanceOHLCSource = BinanceOHLCSource;
-  global.ChartKitUtils = { deepMerge, fmtNum, formatForInterval, toISO_utc };
 })(window);

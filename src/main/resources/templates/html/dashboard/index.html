@@ -38,14 +38,71 @@
   <!--start header-->
  <header class="top-header">
   <nav class="navbar navbar-expand align-items-center justify-content-between gap-4 border-bottom">
-    <div class="logo-header d-none d-xl-flex align-items-center gap-2">
+    <div class=" d-none d-xl-flex align-items-center gap-2">
       <div class="logo-icon">
 <!--         <img src="/images/logo-icon.png" class="logo-img" width="45" alt="">
  -->      </div>
-      <div class="logo-name">
+      <div class="logo-header d-xl-flex align-items-center">
+        <div class="logo-name">
         <h5 class="mb-0">coinic</h5>
+      	</div>
       </div>
+      <div class="dropdown-container">
+	              <ul class="list-unstyled m-0">
+							<li class="nav-item dropdown">
+							   <a class="d-flex align-items-center nav-link dropdown-toggle dropdown-toggle-nocaret"
+								href="javascript:;" data-bs-toggle="dropdown">
+									<div class="parent-icon">
+										
+									</div>
+									<div class="menu-title d-flex align-items-center ms-2">Add Cryptocurrency</div>
+									<div class="m-auto dropy-icon  pt-2">
+										<i class="material-icons-outlined">add</i>
+									</div>
+								</a>
+								<ul id="cryptoDropdown" class="dropdown-menu">
+									 <li>
+									      <a class="dropdown-item d-flex align-items-center" href="#">
+									        <img src="/css/image/Bitcoin.svg" alt="Bitcoin" width="24" height="24" class="me-2">
+									        Bitcoin (BTC)
+									      </a>
+									    </li>
+									    <li>
+									      <a class="dropdown-item d-flex align-items-center" href="#">
+									        <img src="/css/image/XRP.svg" alt="XRP" width="24" height="24" class="me-2">
+									        Ripple (XRP)
+									      </a>
+									    </li>
+									    <li>
+									      <a class="dropdown-item d-flex align-items-center" href="#">
+									        <img src="/css/image/Ethereum.svg" alt="Ethereum" width="24" height="24" class="me-2">
+									        Ethereum (ETH)
+									      </a>
+									    </li>
+									    <li>
+									      <a class="dropdown-item d-flex align-items-center" href="#">
+									        <img src="/css/image/Solana.svg" alt="Solana" width="24" height="24" class="me-2">
+									        Solana (SOL)
+									      </a>
+									    </li>
+									    <li>
+									      <a class="dropdown-item d-flex align-items-center" href="#">
+									        <img src="/css/image/Shiba.svg" alt="Shiba Inu" width="24" height="24" class="me-2">
+									        Shiba Inu (SHIB)
+									      </a>
+									    </li>
+									    <li>
+									      <a class="dropdown-item d-flex align-items-center" href="#">
+									        <img src="/css/image/Binance.svg" alt="Binance" width="24" height="24" class="me-2">
+									        Binance Coin (BNB)
+									      </a>
+									    </li>
+								</ul></li>
+	
+						</ul>
+					</div>
     </div>
+    
     <div class="btn-toggle d-xl-none" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar">
       <a href="javascript:;"><i class="material-icons-outlined">menu</i></a>
     </div>
@@ -76,59 +133,27 @@
 </header>
 <!--end top header-->
 
-
-<!--navigation-->
-<!-- <div class="primary-menu">
-  <nav class="navbar navbar-expand-xl align-items-center">
-   <div class="offcanvas offcanvas-start w-260" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbarLabel">
-   <div class="offcanvas-header border-bottom h-70">
-     <div class="d-flex align-items-center gap-2">
-       <div class="">
-         <img src="/images/logo-icon.png" class="logo-icon" width="45" alt="logo icon">
-       </div>
-       <div class="">
-         <h4 class="logo-text">Coinic</h4>
-       </div>
-     </div>
-     <a href="javascript:;" class="primaery-menu-close" data-bs-dismiss="offcanvas">
-      <i class="material-icons-outlined">close</i>
-     </a>
-   </div>
- 
-   </div>
- </nav>
-</div> -->
-<!--end navigation-->
-
   <!--start main wrapper-->
-  <main class="main-wrapper">
+  <main class="main-wrapper mt-0">
     <div class="main-content">
       <!--breadcrumb-->
 		<div class="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
-			<div class="breadcrumb-title pe-3">	<ul class="list-unstyled">
-						<li class="nav-item dropdown"><a
-							class="d-flex nav-link dropdown-toggle dropdown-toggle-nocaret"
-							href="javascript:;" data-bs-toggle="dropdown">
-								<div class="parent-icon">
-									<img src="/css/image/Bitcoin.svg" alt="Bitcoin Logo" width="35"
-										height="35">
-								</div>
-								<div class="menu-title d-flex align-items-center ms-2">Bitcoin</div>
-								<div class="m-auto dropy-icon  pt-2">
-									<i class='material-icons-outlined'>expand_more</i>
-								</div>
-						</a>
-							<ul id="cryptoDropdown" class="dropdown-menu">
-							</ul></li>
-
-					</ul></div>
-			
-			
+			<div class="breadcrumb-title pe-3">	
+		
+				</div>
 		</div>
 		<!--end breadcrumb-->
 		  <div class="row">
-          <div class="col-xxl-6 d-flex align-items-stretch">
+		  <div id="chartsContainer"  class="row g-3" ></div>
+		  
+        <!--   <div class="col-xxl-12 col-md-6 d-flex align-items-stretch">
             <div class="card w-100 overflow-hidden rounded-1">
+              <div class="card-header">
+           		<div class="d-flex">
+           			 <img src="/css/image/Bitcoin.svg" alt="Bitcoin" width="24" height="24" class="me-2">
+									     <div>  Bitcoin (BTC)  </div>  <div> 112.523  </div> 
+           		</div>
+              </div>
               <div class="card-body position-relative p-0">
                 <div class="row">
                   <div class="col-12">
@@ -142,8 +167,8 @@
 						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line " onclick="changeTimeframe('1m')">1m</button>
 						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line " onclick="changeTimeframe('5m')">5m</button>
 						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line " onclick="changeTimeframe('15m')">15m</button>
-						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line active" onclick="changeTimeframe('1h')">1h</button>
-						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line " onclick="changeTimeframe('4h')">4h</button>
+						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line " onclick="changeTimeframe('1h')">1h</button>
+						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line active" onclick="changeTimeframe('4h')">4h</button>
 						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line " onclick="changeTimeframe('1d')">1d</button>
 						    <button type="button" class="fs-8 pb-0 pt-0 btn btn-no-line " onclick="changeTimeframe('1w')">1w</button>
 						</div>
@@ -175,152 +200,18 @@
                   </div>
                   <div class="col-12 col-sm-5">
                     <div class="welcome-back-img pt-3">
-<!--                        <img src="/images/gallery/welcome-back-3.png" height="180" alt="">
- -->                    </div>
-                  </div>
-                </div><!--end row-->
-              </div>
-            </div>
-          </div>
-    
-        </div>
-        <div class="col-xxl-6 d-flex align-items-stretch">
-            <div class="card w-100 overflow-hidden rounded-1">
-              <div class="card-body position-relative p-0">
-                <div class="row">
-                  <div class="col-12">
-                     <div class="d-flex align-items-center">
-	                  
-                    <div class="d-flex align-items-center w-100 gap-5">
-                   
-                        <div class="chart-container2 h-100 w-100">
-				       
-							<hr class="w-100">
-						    <div class=" col-12 d-flex align-items-center">
-			                <div id="ohlc-info" class="w-100 fs-8 d-none">
-			                    <div class="d-flex px-3">
-			                       <div class="col"><strong></strong> <span id="date"></span></div> 
-			                       <div class="col"> <strong>Open:</strong> <span id="open"></span></div> 
-			                       <div class="col"> <strong>High:</strong> <span id="high"></span></div> 
-			                       <div class="col"> <strong>Low:</strong> <span id="low"></span></div> 
-			                       <div class="col"> <strong>Close:</strong> <span id="close"></span></div> 
-			                    </div>
-			                </div>
-            				</div>
-            				<div id="loading-spinner-chart2" class="spinner-style" role="status">
-						        <button class="btn btn-primary" type="button" disabled=""> <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-									Loading...</button>
-						    </div>
-		                 	<div id="eth-chart"></div>
-						
-		                    
-		                </div>
+                       <img src="/images/gallery/welcome-back-3.png" height="180" alt="">
                     </div>
                   </div>
-                  <div class="col-12 col-sm-5">
-                    <div class="welcome-back-img pt-3">
-<!--                        <img src="/images/gallery/welcome-back-3.png" height="180" alt="">
- -->                    </div>
-                  </div>
-                </div><!--end row-->
+                </div>end row
               </div>
             </div>
           </div>
     
-        </div>
-
+        </div> -->
+        
 	</div>
-		  <div class="row">
-          <div class="col-xxl-6 d-flex align-items-stretch">
-            <div class="card w-100 overflow-hidden rounded-1">
-              <div class="card-body position-relative p-0">
-                <div class="row">
-                  <div class="col-12">
-                     <div class="d-flex align-items-center">
-	                  
-                    <div class="d-flex align-items-center w-100 gap-5">
-                   
-                        <div class="chart-container2 h-100 w-100">
-				       
-				       
-							<hr class="w-100">
-						    <div class=" col-12 d-flex align-items-center">
-			                <div id="ohlc-info" class="w-100 fs-8 d-none">
-			                    <div class="d-flex px-3">
-			                       <div class="col"><strong></strong> <span id="date"></span></div> 
-			                       <div class="col"> <strong>Open:</strong> <span id="open"></span></div> 
-			                       <div class="col"> <strong>High:</strong> <span id="high"></span></div> 
-			                       <div class="col"> <strong>Low:</strong> <span id="low"></span></div> 
-			                       <div class="col"> <strong>Close:</strong> <span id="close"></span></div> 
-			                    </div>
-			                </div>
-            				</div>
-            				<div id="loading-spinner-chart3" class="spinner-style" role="status">
-						        <button class="btn btn-primary" type="button" disabled=""> <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-									Loading...</button>
-						    </div>
-		                 
-						  	<div id="chart3"></div>
-		                </div>
-                    </div>
-                  </div>
-                  <div class="col-12 col-sm-5">
-                    <div class="welcome-back-img pt-3">
-<!--                        <img src="/images/gallery/welcome-back-3.png" height="180" alt="">
- -->                    </div>
-                  </div>
-                </div><!--end row-->
-              </div>
-            </div>
-          </div>
-    
-        </div>
-        <div class="col-xxl-6 d-flex align-items-stretch">
-            <div class="card w-100 overflow-hidden rounded-1">
-              <div class="card-body position-relative p-0">
-                <div class="row">
-                  <div class="col-12">
-                     <div class="d-flex align-items-center">
-	                  
-                    <div class="d-flex align-items-center w-100 gap-5">
-                   
-                        <div class="chart-container2 h-100 w-100">
-				       
-							<hr class="w-100">
-						    <div class=" col-12 d-flex align-items-center">
-			                <div id="ohlc-info" class="w-100 fs-8 d-none">
-			                    <div class="d-flex px-3">
-			                       <div class="col"><strong></strong> <span id="date"></span></div> 
-			                       <div class="col"> <strong>Open:</strong> <span id="open"></span></div> 
-			                       <div class="col"> <strong>High:</strong> <span id="high"></span></div> 
-			                       <div class="col"> <strong>Low:</strong> <span id="low"></span></div> 
-			                       <div class="col"> <strong>Close:</strong> <span id="close"></span></div> 
-			                    </div>
-			                </div>
-            				</div>
-            				<div id="loading-spinner-chart4" class="spinner-style" role="status">
-						        <button class="btn btn-primary" type="button" disabled=""> <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-									Loading...</button>
-						    </div>
-		                 	<div id="chart4"></div>
-						
-		                    
-		                </div>
-                    </div>
-                  </div>
-                  <div class="col-12 col-sm-5">
-                    <div class="welcome-back-img pt-3">
-<!--                        <img src="/images/gallery/welcome-back-3.png" height="180" alt="">
- -->                    </div>
-                  </div>
-                </div><!--end row-->
-              </div>
-            </div>
-          </div>
-    
-        </div>
-
-	</div>
+		  
    </main>
   <!--end main wrapper-->
 
@@ -367,10 +258,15 @@
   <script src="/js/plugins/simplebar/js/simplebar.min.js"></script>
   <script src="/js/plugins/peity/jquery.peity.min.js"></script>
 
-    <script src="/js/graph/chartManager.js"></script>
-  
 <!--  <script src="/js/main.js"></script>-->  
-<script src="/js/chartkit.js"></script>
+
+<!-- <script src="/js/chartkit.js"></script> -->
+<script src="/js/chartkit/utils/utils.js"></script>
+<script src="/js/chartkit/data/DataSource.js"></script>
+<script src="/js/chartkit/data/BinanceOHLCSource.js"></script>
+<script src="/js/chartkit/core/ChartKit.js"></script>
+<script src="/js/chartkit/index.js"></script>
+
 <script src="/js/dashboard1.js"></script>
 
 </body>

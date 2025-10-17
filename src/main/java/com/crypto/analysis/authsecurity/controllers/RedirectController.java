@@ -10,7 +10,7 @@ public class RedirectController {
 
 	@RequestMapping(value="/")
 	public ModelAndView defaultPage(ModelMap model) {
-		return new ModelAndView("html/default");
+		return new ModelAndView("html/auth/login");
 	}
 	
 	@RequestMapping(value="/login")

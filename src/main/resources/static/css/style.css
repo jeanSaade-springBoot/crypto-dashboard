@@ -213,7 +213,8 @@ option {
 
 .required{
    border: 1px solid #ed657d;
-}  
+} 
+ 
 .jqx-widget-header.jqx-widget-header-dark.jqx-grid-header.jqx-grid-header-dark {
     height: 0px !important;
 }

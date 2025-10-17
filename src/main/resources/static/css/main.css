@@ -30,7 +30,22 @@ body {
   letter-spacing: 0.5px;
   background-color: #eff1f3;
 }
-
+.dropdown-container {
+    width: 115px;
+}
+.btn-trash {
+	background: transparent;
+	border: 0;
+	padding: 0;
+}
+.icon-small {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}
+.icon-small path {
+  fill: white;
+}
 a {
   text-decoration: none;
 }

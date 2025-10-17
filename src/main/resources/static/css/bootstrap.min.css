@@ -3263,9 +3263,9 @@ textarea.form-control-lg {
 	background-color: var(--bs-dropdown-link-active-bg)
 }
 .dropdown-item.disabled, .dropdown-item:disabled {
-	color: var(--bs-dropdown-link-disabled-color);
-	pointer-events: none;
-	background-color: transparent
+	color: rgb(210 210 210 / 50%);
+    pointer-events: none;
+    background-color: #071424;
 }
 .dropdown-menu.show {
 	display: block
