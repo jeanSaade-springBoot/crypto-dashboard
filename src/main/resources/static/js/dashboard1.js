@@ -212,4 +212,19 @@ document.addEventListener("DOMContentLoaded", function () {
   // === Default chart =============================================
   // ---------------------------------------------------------------
   createChartCard("BTC");
+  
+  // ---------------------------------------------------------------
+// === Enable drag-and-drop chart sorting ========================
+// ---------------------------------------------------------------
+const sortable = new Sortable(chartContainer, {
+  animation: 150,
+  handle: ".card-header", // user can grab header area
+  ghostClass: "chart-ghost",
+  chosenClass: "chart-chosen",
+  dragClass: "chart-dragging",
+  onEnd: () => {
+    // optional: update internal order or save to localStorage
+    console.log("Chart order changed!");
+  },
+});
 });
