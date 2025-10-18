@@ -44,9 +44,9 @@
       if (!Array.isArray(arr) || arr.length === 0) return { points: [] };
 
       const points = arr.map((k) => ({
-        _openMs: k[0],
-        x: new Date(k[0]).toISOString(),
+        x: k[0], 
         y: [+k[1], +k[2], +k[3], +k[4]],
+        volume: +k[5],
       }));
 
       this.cursorMs = arr[0][0];

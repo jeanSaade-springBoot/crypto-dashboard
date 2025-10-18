@@ -95,58 +95,68 @@ document.addEventListener("DOMContentLoaded", function () {
     wrapper.className =
       "crypto-card col-12 mt-0 col-md-6 d-flex align-items-stretch";
     wrapper.dataset.symbol = symbol;
+    
+wrapper.innerHTML = `
+  <div class="card w-100 overflow-hidden rounded-1">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center">
+        <img src="${img}" alt="${name}" width="24" height="24" class="me-2">
+        <div>${name} (${symbol})</div>
+      </div>
+      <button class="btn-trash btn-sm remove-chart" aria-label="Close">
+        <svg class="icon-small" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M5.755 20.283 4 8h16l-1.755 12.283A2 2 0 0 1 16.265 22h-8.53a2 2 0 0 1-1.98-1.717zM21 4h-5V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v1H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2z"/>
+        </svg>
+      </button>
+    </div>
+    <div class="card-body position-relative p-0">
+      <div class="chart-container2 h-100 w-100 p-2">
+        <div class="btn-group pt-2" role="group">
+          ${["1m","5m","15m","1h","4h","1d","1w"]
+            .map(
+              (tf) => `
+              <button 
+                type="button"
+                class="fs-8 pb-0 pt-0 btn btn-no-line btn-timeframe ${
+                  tf === "4h" ? "active" : ""
+                }"
+                data-tf="${tf}"
+                data-symbol="${symbol}"
+              >${tf}</button>`
+            )
+            .join("")}
+        </div>
 
-    wrapper.innerHTML = `
-      <div class="card w-100 overflow-hidden rounded-1">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <div class="d-flex align-items-center">
-            <img src="${img}" alt="${name}" width="24" height="24" class="me-2">
-            <div>${name} (${symbol})</div>
+        <!-- 👇 ADD THIS BUTTON -->
+        <button 
+         id="go-latest-${symbol.toLowerCase()}"
+          class="btn btn-outline-success btn-sm position-absolute" 
+          style="top:10px; right:10px; z-index:10;"
+        >
+          Latest
+        </button>
+
+        <hr class="w-100">
+        <div id="${ids.ohlc.pillId}" class="w-100 fs-8 d-none">
+          <div class="d-flex px-3">
+            <div class="col"><strong></strong> <span id="${ids.ohlc.date}"></span></div>
+            <div class="col"><strong>Open:</strong> <span id="${ids.ohlc.open}"></span></div>
+            <div class="col"><strong>High:</strong> <span id="${ids.ohlc.high}"></span></div>
+            <div class="col"><strong>Low:</strong> <span id="${ids.ohlc.low}"></span></div>
+            <div class="col"><strong>Close:</strong> <span id="${ids.ohlc.close}"></span></div>
           </div>
-          <button class="btn-trash btn-sm remove-chart" aria-label="Close">
-            <svg class="icon-small" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-              <path d="M5.755 20.283 4 8h16l-1.755 12.283A2 2 0 0 1 16.265 22h-8.53a2 2 0 0 1-1.98-1.717zM21 4h-5V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v1H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2z"/>
-            </svg>
+        </div>
+        <div id="${ids.spinner}" class="spinner-style" role="status">
+          <button class="btn btn-primary" type="button" disabled>
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            Loading...
           </button>
         </div>
-        <div class="card-body position-relative p-0">
-          <div class="chart-container2 h-100 w-100 p-2">
-            <div class="btn-group pt-2" role="group">
-              ${["1m","5m","15m","1h","4h","1d","1w"]
-                .map(
-                  (tf) => `
-                <button 
-                  type="button"
-                  class="fs-8 pb-0 pt-0 btn btn-no-line btn-timeframe ${
-                    tf === "4h" ? "active" : ""
-                  }"
-                  data-tf="${tf}"
-                  data-symbol="${symbol}"
-                >${tf}</button>`
-                )
-                .join("")}
-            </div>
-            <hr class="w-100">
-            <div id="${ids.ohlc.pillId}" class="w-100 fs-8 d-none">
-              <div class="d-flex px-3">
-                <div class="col"><strong></strong> <span id="${ids.ohlc.date}"></span></div>
-                <div class="col"><strong>Open:</strong> <span id="${ids.ohlc.open}"></span></div>
-                <div class="col"><strong>High:</strong> <span id="${ids.ohlc.high}"></span></div>
-                <div class="col"><strong>Low:</strong> <span id="${ids.ohlc.low}"></span></div>
-                <div class="col"><strong>Close:</strong> <span id="${ids.ohlc.close}"></span></div>
-              </div>
-            </div>
-            <div id="${ids.spinner}" class="spinner-style" role="status">
-              <button class="btn btn-primary" type="button" disabled>
-                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                Loading...
-              </button>
-            </div>
-            <div id="${ids.main}" style="height:350px;"></div>
-          </div>
-        </div>
+        <div id="${ids.main}" style="height:350px;"></div>
       </div>
-    `;
+    </div>
+  </div>
+`;
 
     chartContainer.appendChild(wrapper);
     activeCharts.add(symbol);
@@ -158,6 +168,7 @@ document.addEventListener("DOMContentLoaded", function () {
       symbol: `${symbol}USDT`,
       interval: "4h",
     });
+  
     ChartKit.create({
       key: sKey,
       containerId: ids.main,
@@ -227,4 +238,5 @@ const sortable = new Sortable(chartContainer, {
     console.log("Chart order changed!");
   },
 });
+
 });
