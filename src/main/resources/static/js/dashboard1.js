@@ -174,14 +174,20 @@ wrapper.innerHTML = `
       containerId: ids.main,
       spinnerId: ids.spinner,
       series: [
-        {
-          name: `${name} (${symbol})`,
-          type: "candlestick",
-          color: "#00E396",
-          dataSource: src,
-          ohlcPill: ids.ohlc,
-        },
-      ],
+		  {
+		    name: `${name} (${symbol})`,
+		    type: "candlestick",
+		    color: "#00E396",
+		    dataSource: src,
+		    ohlcPill: ids.ohlc,
+		  },
+		  {
+		    name: `${name} Volume`,
+		    type: "bar",
+		    color: "#8884d8",
+		    dataSource: src, // same data source
+		  },
+		],
     });
 
     // Timeframe buttons
@@ -196,13 +202,18 @@ wrapper.innerHTML = `
     });
 
     // Remove chart
-    wrapper.querySelector(".remove-chart").addEventListener("click", () => {
-      wrapper.remove();
-      ChartKit.get(sKey)?.destroy();
-      activeCharts.delete(symbol);
-      layoutCharts();
-      updateDropdownState(); // re-enable dropdown item
-    });
+	    wrapper.querySelector(".remove-chart").addEventListener("click", () => {
+		  wrapper.remove();
+		  const chart = ChartKit.get(sKey);
+		  if (chart) {
+		    chart.destroy?.();
+		    ChartKit.registry.delete(sKey);
+		  }
+		  activeCharts.delete(symbol);
+		  layoutCharts();
+		  updateDropdownState();
+		  ChartKit.resizeAll(); // 🔁 resize all remaining charts
+		});
   }
 
   // ---------------------------------------------------------------

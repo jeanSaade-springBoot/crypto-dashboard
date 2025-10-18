@@ -46,7 +46,7 @@
       const points = arr.map((k) => ({
         x: k[0], 
         y: [+k[1], +k[2], +k[3], +k[4]],
-        volume: +k[5],
+        volume: +k[7],
       }));
 
       this.cursorMs = arr[0][0];
