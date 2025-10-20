@@ -14,7 +14,21 @@
 		if (abs >= 1_000) return (v / 1_000).toFixed(2) + " K";
 		return v.toFixed(2);
 	}
-
+	// === Retracement Math Helper ===
+	function calculateRetracements(startPrice, endPrice) {
+		const diff = endPrice - startPrice;
+		const retracements = {
+			"10%": endPrice - diff * 0.10,
+			"25%": endPrice - diff * 0.25,
+			"33%": endPrice - diff * 0.33,
+			"38%": endPrice - diff * 0.382,
+			"50%": endPrice - diff * 0.5,
+			"62%": endPrice - diff * 0.618,
+			"66%": endPrice - diff * 0.666,
+			"75%": endPrice - diff * 0.75,
+		};
+		return retracements;
+	}
 	class ChartKit {
 		static registry = new Map();
 
@@ -34,34 +48,34 @@
 		}
 
 		static resizeAll() {
-		  const total = ChartKit.registry.size;
-		  let dynamicHeight;
-		
-		  // 🧩 Different rules for count
-		  if (total === 1) {
-		    dynamicHeight = window.innerHeight - 269; // full screen
-		  } else if (total === 2) {
-		    dynamicHeight = (window.innerHeight - 100) / 2; // both half height
-		  } else if (total >= 3) {
-		    dynamicHeight =   300; // fallback default
-		    // every new chart divides height proportionally
-		  } else {
-		    dynamicHeight = 300; // fallback default
-		  }
-		
-		  // ✅ Only resize *existing* charts when 3 or more
-		  ChartKit.registry.forEach((chart) => {
-		    if (!chart.chart) return;
-		
-		    // For 1 or 2 charts, keep previous height
-		    if (total <= 2 && chart.chart.w.config.chart.height !== dynamicHeight) return;
-		
-		    chart.chart.updateOptions(
-		      { chart: { height: dynamicHeight } },
-		      false,
-		      false
-		    );
-		  });
+			const total = ChartKit.registry.size;
+			let dynamicHeight;
+
+			// 🧩 Different rules for count
+			if (total === 1) {
+				dynamicHeight = window.innerHeight - 269; // full screen
+			} else if (total === 2) {
+				dynamicHeight = (window.innerHeight - 100) / 2; // both half height
+			} else if (total >= 3) {
+				dynamicHeight = 300; // fallback default
+				// every new chart divides height proportionally
+			} else {
+				dynamicHeight = 300; // fallback default
+			}
+
+			// ✅ Only resize *existing* charts when 3 or more
+			ChartKit.registry.forEach((chart) => {
+				if (!chart.chart) return;
+
+				// For 1 or 2 charts, keep previous height
+				if (total <= 2 && chart.chart.w.config.chart.height !== dynamicHeight) return;
+
+				chart.chart.updateOptions(
+					{ chart: { height: dynamicHeight } },
+					false,
+					false
+				);
+			});
 		}
 
 		constructor(cfg) {
@@ -126,7 +140,7 @@
 					height: dynamicHeight,
 					animations: { enabled: false },
 					id: `chart-${self.key}`,
-					group: `chart-${self.key}`,
+					//	group: `chart-${self.key}`,
 					zoom: { enabled: true, type: "x", autoScaleYaxis: false },
 					toolbar: { show: false },
 					panning: { enabled: false },
@@ -226,10 +240,11 @@
 			const volumeSeries = {
 				name: "Volume",
 				type: "bar",
-				data: volumeData,
+				data: this._volumeHidden ? [] : volumeData, // respect current toggle state
 				yAxisIndex: 1,
 				showInLegend: false,
 				opacity: 0.4,
+				_hidden: this._volumeHidden,
 			};
 
 			return [
@@ -237,6 +252,7 @@
 				volumeSeries,
 			];
 		}
+
 
 		// ---------------------------------------------------
 		// === Init & Reload =================================
@@ -260,6 +276,74 @@
 			await this.updateYAxisForRange(min, max);
 			this.updateLoadedLabel(min, max);
 		}
+		toggleVolume() {
+			if (!this.chart) return;
+
+			const volIndex = this.chart.w.config.series.findIndex(s => s.name === "Volume");
+			const hasVolumeSeries = volIndex !== -1;
+			const candleSeries = this.seriesDefs.find(s => s.type === "candlestick");
+
+			// 🧩 Freeze current axis ranges before update
+			const currentYaxis = this.chart.w.config.yaxis[0];
+			const lockedYmin = currentYaxis.min ?? this.chart.w.globals.minY;
+			const lockedYmax = currentYaxis.max ?? this.chart.w.globals.maxY;
+			const lockedXmin = this.chart.w.config.xaxis.min ?? this.chart.w.globals.minX;
+			const lockedXmax = this.chart.w.config.xaxis.max ?? this.chart.w.globals.maxX;
+
+			// Helper: rebuild volume data fresh
+			const rebuildVolumeData = () => {
+				return (candleSeries?.data || []).map(p => {
+					const [O, H, L, C] = p.y;
+					const bullish = C >= O;
+					return {
+						x: p.x,
+						y: p.volume || 0,
+						fillColor: bullish ? "#00E39680" : "#FF456080",
+					};
+				});
+			};
+
+			// Toggle hidden state
+			this._volumeHidden = !this._volumeHidden;
+
+			if (this._volumeHidden) {
+				// hide volume
+				if (hasVolumeSeries) this.chart.w.config.series[volIndex].data = [];
+			} else {
+				// show volume again
+				if (hasVolumeSeries) {
+					this.chart.w.config.series[volIndex].data = rebuildVolumeData();
+				} else {
+					const volSeries = {
+						name: "Volume",
+						type: "bar",
+						yAxisIndex: 1,
+						showInLegend: false,
+						opacity: 0.4,
+						data: rebuildVolumeData(),
+					};
+					this.chart.w.config.series.push(volSeries);
+				}
+			}
+
+			// ✅ update safely
+			this.chart.updateSeries(this.chart.w.config.series, false);
+
+			// ✅ restore both Y & X axis ranges to freeze zoom/scroll
+			this.chart.updateOptions({
+				yaxis: [
+					{ ...this.apexOptions.yaxis[0], min: lockedYmin, max: lockedYmax },
+					this.apexOptions.yaxis[1],
+				],
+				xaxis: {
+					...this.apexOptions.xaxis,
+					min: lockedXmin,
+					max: lockedXmax,
+				},
+			}, false, false);
+
+		}
+
 
 		async initialLoad() {
 			this.showSpinner();
@@ -520,6 +604,101 @@
 				)} (len ${this.seriesDefs[0]?.data.length || 0})`
 			);
 		}
+	addRetracement({ startPrice, endPrice, startDate, endDate, retracementId }) {
+  if (!this.chart) return;
+
+  const isUptrend = endPrice > startPrice;
+  const retracements = calculateRetracements(startPrice, endPrice);
+
+  // --- 🟢 Always include Start & End as horizontal lines ---
+  const yAnnotations = [
+    {
+      y: startPrice,
+      strokeDashArray: 0,
+      borderColor: "#00ff88",
+      label: {
+        text: `Start (${fmtNum(startPrice)})`,
+        borderColor: "transparent",
+        style: {
+          color: "#00ff88",
+          background: "transparent",
+          fontSize: "10px",
+          fontWeight: "bold",
+        },
+      },
+    },
+    {
+      y: endPrice,
+      strokeDashArray: 0,
+      borderColor: "#ff0088",
+      label: {
+        text: `End (${fmtNum(endPrice)})`,
+        borderColor: "transparent",
+        style: {
+          color: "#ff0088",
+          background: "transparent",
+          fontSize: "10px",
+          fontWeight: "bold",
+        },
+      },
+    },
+  ];
+
+  // --- 🟢 Add intermediate retracement levels ---
+  const retracementLines = Object.entries(retracements).map(([label, price]) => ({
+    y: price,
+    strokeDashArray: 0,
+    borderColor: isUptrend ? "#00ffff" : "#ff4560",
+    label: {
+      text: `${label} (${price.toFixed(2)})`,
+      borderColor: "transparent",
+      style: {
+        color: "#fff",
+        background: "transparent",
+        fontSize: "10px",
+      },
+    },
+  }));
+
+  yAnnotations.push(...retracementLines);
+
+  // --- 🧠 Store retracement for later toggle ---
+  if (!this._retracements) this._retracements = {};
+  this._retracements[retracementId] = {
+    params: { startPrice, endPrice, startDate, endDate },
+    annotations: { yaxis: yAnnotations },
+    hidden: false,
+  };
+
+  // --- 🧩 Update chart ---
+  this.chart.updateOptions(
+    {
+      annotations: {
+        yaxis: Object.values(this._retracements)
+          .filter(r => !r.hidden)
+          .flatMap(r => r.annotations.yaxis),
+      },
+    },
+    false,
+    false
+  );
+}
+
+		toggleRetracement(retracementId) {
+			if (!this._retracements || !this._retracements[retracementId]) return;
+
+			const retr = this._retracements[retracementId];
+			retr.hidden = !retr.hidden;
+
+			this.chart.updateOptions({
+				annotations: {
+					yaxis: Object.values(this._retracements)
+						.filter(r => !r.hidden)
+						.flatMap(r => r.annotations),
+				},
+			}, false, false);
+		}
+
 	}
 
 	global.ChartKit = ChartKit;
