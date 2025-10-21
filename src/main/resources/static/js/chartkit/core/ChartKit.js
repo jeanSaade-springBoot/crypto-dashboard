@@ -42,7 +42,22 @@
 
 			return inst;
 		}
-
+		restoreUserSettings() {
+		  const all = JSON.parse(localStorage.getItem("chartSettings") || "{}");
+		  const settings = all[this.key];
+		  if (!settings) return;
+		
+		  if (settings.interval) this.selectedInterval = settings.interval;
+		  if (settings.volumeHidden) this._volumeHidden = true;
+		
+		  // retracements can be redrawn if stored
+		  if (settings.retracements?.length && this._retracements) {
+		    for (const rId of settings.retracements) {
+		      const r = this._retracements[rId];
+		      if (r) this.addRetracement(r.params);
+		    }
+		  }
+		}
 		static get(key) {
 			return ChartKit.registry.get(key);
 		}
@@ -239,7 +254,7 @@
 
 			const volumeSeries = {
 				name: "Volume",
-				type: "bar",
+				type: "column",
 				data: this._volumeHidden ? [] : volumeData, // respect current toggle state
 				yAxisIndex: 1,
 				showInLegend: false,
@@ -259,6 +274,7 @@
 		// ---------------------------------------------------
 		async init() {
 			await this.initialLoad();
+			this.restoreUserSettings();
 			this.attachDragHandlers();
 			const btn = document.getElementById(`go-latest-${this.key}`);
 			if (btn) btn.addEventListener("click", () => this.goToLatest());
@@ -276,73 +292,75 @@
 			await this.updateYAxisForRange(min, max);
 			this.updateLoadedLabel(min, max);
 		}
-		toggleVolume() {
-			if (!this.chart) return;
+		setVolumeHidden(hidden) {
+	if (!this.chart) return;
 
-			const volIndex = this.chart.w.config.series.findIndex(s => s.name === "Volume");
-			const hasVolumeSeries = volIndex !== -1;
-			const candleSeries = this.seriesDefs.find(s => s.type === "candlestick");
+	const volIndex = this.chart.w.config.series.findIndex(s => s.name === "Volume");
+	const hasVolumeSeries = volIndex !== -1;
+	const candleSeries = this.seriesDefs.find(s => s.type === "candlestick");
 
-			// 🧩 Freeze current axis ranges before update
-			const currentYaxis = this.chart.w.config.yaxis[0];
-			const lockedYmin = currentYaxis.min ?? this.chart.w.globals.minY;
-			const lockedYmax = currentYaxis.max ?? this.chart.w.globals.maxY;
-			const lockedXmin = this.chart.w.config.xaxis.min ?? this.chart.w.globals.minX;
-			const lockedXmax = this.chart.w.config.xaxis.max ?? this.chart.w.globals.maxX;
+	// 🧩 Freeze current axis ranges before update
+	const currentYaxis = this.chart.w.config.yaxis[0];
+	const lockedYmin = currentYaxis.min ?? this.chart.w.globals.minY;
+	const lockedYmax = currentYaxis.max ?? this.chart.w.globals.maxY;
+	const lockedXmin = this.chart.w.config.xaxis.min ?? this.chart.w.globals.minX;
+	const lockedXmax = this.chart.w.config.xaxis.max ?? this.chart.w.globals.maxX;
 
-			// Helper: rebuild volume data fresh
-			const rebuildVolumeData = () => {
-				return (candleSeries?.data || []).map(p => {
-					const [O, H, L, C] = p.y;
-					const bullish = C >= O;
-					return {
-						x: p.x,
-						y: p.volume || 0,
-						fillColor: bullish ? "#00E39680" : "#FF456080",
-					};
-				});
+	// Helper: rebuild volume data fresh
+	const rebuildVolumeData = () =>
+		(candleSeries?.data || []).map(p => {
+			const [O, H, L, C] = p.y;
+			const bullish = C >= O;
+			return {
+				x: p.x,
+				y: p.volume || 0,
+				fillColor: bullish ? "#00E39680" : "#FF456080",
 			};
+		});
 
-			// Toggle hidden state
-			this._volumeHidden = !this._volumeHidden;
+	// ✅ Set the hidden state directly (not toggling)
+	this._volumeHidden = !!hidden;
 
-			if (this._volumeHidden) {
-				// hide volume
-				if (hasVolumeSeries) this.chart.w.config.series[volIndex].data = [];
-			} else {
-				// show volume again
-				if (hasVolumeSeries) {
-					this.chart.w.config.series[volIndex].data = rebuildVolumeData();
-				} else {
-					const volSeries = {
-						name: "Volume",
-						type: "bar",
-						yAxisIndex: 1,
-						showInLegend: false,
-						opacity: 0.4,
-						data: rebuildVolumeData(),
-					};
-					this.chart.w.config.series.push(volSeries);
-				}
-			}
-
-			// ✅ update safely
-			this.chart.updateSeries(this.chart.w.config.series, false);
-
-			// ✅ restore both Y & X axis ranges to freeze zoom/scroll
-			this.chart.updateOptions({
-				yaxis: [
-					{ ...this.apexOptions.yaxis[0], min: lockedYmin, max: lockedYmax },
-					this.apexOptions.yaxis[1],
-				],
-				xaxis: {
-					...this.apexOptions.xaxis,
-					min: lockedXmin,
-					max: lockedXmax,
-				},
-			}, false, false);
-
+	if (this._volumeHidden) {
+		// hide volume
+		if (hasVolumeSeries) this.chart.w.config.series[volIndex].data = [];
+	} else {
+		// show volume again
+		if (hasVolumeSeries) {
+			this.chart.w.config.series[volIndex].data = rebuildVolumeData();
+		} else {
+			const volSeries = {
+				name: "Volume",
+				type: "bar",
+				yAxisIndex: 1,
+				showInLegend: false,
+				opacity: 0.4,
+				data: rebuildVolumeData(),
+			};
+			this.chart.w.config.series.push(volSeries);
 		}
+	}
+
+	// ✅ update safely
+	this.chart.updateSeries(this.chart.w.config.series, false);
+
+	// ✅ restore both Y & X axis ranges to freeze zoom/scroll
+	this.chart.updateOptions({
+		yaxis: [
+			{ ...this.apexOptions.yaxis[0], min: lockedYmin, max: lockedYmax },
+			this.apexOptions.yaxis[1],
+		],
+		xaxis: {
+			...this.apexOptions.xaxis,
+			min: lockedXmin,
+			max: lockedXmax,
+		},
+	}, false, false);
+
+	this.saveUserSettings(); // persist state
+
+	return this._volumeHidden; // ✅ return current state for convenience
+}
 
 
 		async initialLoad() {
@@ -367,6 +385,14 @@
 				await this.updateYAxisForRange(min, max);
 				this.refreshLatestOHLCLabels();
 				this.updateLoadedLabel(min, max);
+				if (typeof this.onReady === "function") {
+			try {
+					this.onReady();
+				} catch (err) {
+					console.error(`[${this.key}] onReady handler failed:`, err);
+				}
+			}
+			
 			} catch (e) {
 				console.error(`[${this.key}] initial load failed:`, e);
 			} finally {
@@ -611,16 +637,20 @@
   const retracements = calculateRetracements(startPrice, endPrice);
 
   // --- 🟢 Always include Start & End as horizontal lines ---
+  const x = new Date(startDate).getTime();
   const yAnnotations = [
     {
+	  x,
       y: startPrice,
+      y2:null,
       strokeDashArray: 0,
-      borderColor: "#00ff88",
+      borderColor: "#00ffff",
       label: {
+		textAnchor:  'c',
         text: `Start (${fmtNum(startPrice)})`,
         borderColor: "transparent",
         style: {
-          color: "#00ff88",
+          color: "#00ffff",
           background: "transparent",
           fontSize: "10px",
           fontWeight: "bold",
@@ -628,14 +658,16 @@
       },
     },
     {
+	  x,
       y: endPrice,
       strokeDashArray: 0,
-      borderColor: "#ff0088",
+      borderColor: "#00ffff",
       label: {
+		textAnchor:  'start',
         text: `End (${fmtNum(endPrice)})`,
         borderColor: "transparent",
         style: {
-          color: "#ff0088",
+          color: "#00ffff",
           background: "transparent",
           fontSize: "10px",
           fontWeight: "bold",
@@ -646,10 +678,12 @@
 
   // --- 🟢 Add intermediate retracement levels ---
   const retracementLines = Object.entries(retracements).map(([label, price]) => ({
+    x,
     y: price,
     strokeDashArray: 0,
     borderColor: isUptrend ? "#00ffff" : "#ff4560",
     label: {
+	  textAnchor:  'start',
       text: `${label} (${price.toFixed(2)})`,
       borderColor: "transparent",
       style: {
@@ -698,6 +732,25 @@
 				},
 			}, false, false);
 		}
+		
+		saveUserSettings() {
+  const settings = {
+    key: this.key,
+    symbol: this.seriesDefs[0]?.name || "",
+    interval: this.selectedInterval,
+    volumeHidden: this._volumeHidden || false,
+    retracements: this._retracements
+      ? Object.keys(this._retracements)
+      : [],
+  };
+
+  // Save to localStorage (or send to backend)
+  const all = JSON.parse(localStorage.getItem("chartSettings") || "{}");
+  all[this.key] = settings;
+  localStorage.setItem("chartSettings", JSON.stringify(all));
+}
+
+// class ending
 
 	}
 
