@@ -680,8 +680,9 @@
   const retracementLines = Object.entries(retracements).map(([label, price]) => ({
     x,
     y: price,
-    strokeDashArray: 0,
+    strokeDashArray: 1,
     borderColor: isUptrend ? "#00ffff" : "#ff4560",
+    opacity: 0.3,
     label: {
 	  textAnchor:  'start',
       text: `${label} (${price.toFixed(2)})`,
