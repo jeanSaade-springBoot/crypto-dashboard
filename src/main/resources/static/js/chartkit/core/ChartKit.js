@@ -64,9 +64,9 @@
 
 		static resizeAll() {
 			const total = ChartKit.registry.size;
-			let dynamicHeight;
+			let dynamicHeight = 300; // fallback default;
 
-			// 🧩 Different rules for count
+			/*// 🧩 Different rules for count
 			if (total === 1) {
 				dynamicHeight = window.innerHeight - 269; // full screen
 			} else if (total === 2) {
@@ -77,7 +77,7 @@
 			} else {
 				dynamicHeight = 300; // fallback default
 			}
-
+*/
 			// ✅ Only resize *existing* charts when 3 or more
 			ChartKit.registry.forEach((chart) => {
 				if (!chart.chart) return;
@@ -143,12 +143,12 @@
 			const self = this;
 			// Dynamically adjust chart height based on how many charts are visible
 			const totalCharts = ChartKit.registry.size || 1;
-			let dynamicHeight;
+			let dynamicHeight = 300;
 
-			if (totalCharts === 1) dynamicHeight = window.innerHeight - 269; // full screen (minus some margin)
+			/*if (totalCharts === 1) dynamicHeight = window.innerHeight - 269; // full screen (minus some margin)
 			else if (totalCharts === 2) dynamicHeight = (window.innerHeight - 100) / 2;
 			else dynamicHeight = 300; // fallback default
-
+*/
 			return {
 				chart: {
 					type: "candlestick",

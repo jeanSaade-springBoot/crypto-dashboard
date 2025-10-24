@@ -95,11 +95,12 @@ async function createChartCard(symbol, interval = "4h", isRestored = false, volu
 	const sKey = symbol.toLowerCase();
 
 	const wrapper = document.createElement("div");
-	wrapper.className = "crypto-card col-12 mt-0 col-md-6 d-flex align-items-stretch";
+	wrapper.className =
+		"crypto-card col-12 mt-0 col-md-6 d-flex align-items-stretch";
 	wrapper.dataset.symbol = symbol;
 
 	// =============================================================
-	// === HTML ====================================================
+	// === HTML Structure ==========================================
 	// =============================================================
 	wrapper.innerHTML = `
 	  <div class="card w-100 overflow-hidden rounded-1 position-relative">
@@ -118,12 +119,12 @@ async function createChartCard(symbol, interval = "4h", isRestored = false, volu
 	    <div class="card-body p-0 d-flex flex-column">
 	      <div class="d-flex w-100 h-100">
 
-	        <!-- 📊 Left Tools bar -->
+	        <!-- Left toolbar -->
 	        <div class="tool-bar d-flex flex-column align-items-center justify-content-start p-1">
 	          <button class="btn btn-sm btn-dark retr-tool-btn" title="Fibonacci Retracement">📈</button>
 	        </div>
 
-	        <!-- 📋 Popup panel (hidden on load) -->
+	        <!-- Popup panel (hidden on load) -->
 	        <div class="retr-popup d-none" id="retr-popup-${sKey}">
 	          <div class="p-2">
 	            <div class="d-flex justify-content-between align-items-center mb-2">
@@ -139,18 +140,38 @@ async function createChartCard(symbol, interval = "4h", isRestored = false, volu
 	          </div>
 	        </div>
 
-	        <!-- 📈 Chart Area -->
+	        <!-- Chart Panel -->
 	        <div class="chart-panel flex-grow-1 position-relative">
 	          <div class="chart-container2 h-100 w-100 pt-2 pb-2 position-relative">
 	            <div class="btn-group pt-2 ps-5" role="group">
-	              ${["1m","5m","15m","1h","4h","1d","1w"].map(tf => `
-	                <button type="button"
-	                  class="fs-8 pb-0 pt-0 btn btn-no-line btn-timeframe ${tf === interval ? "active" : ""}"
-	                  data-tf="${tf}" data-symbol="${symbol}">${tf}</button>`).join("")}
+	              ${["1m", "5m", "15m", "1h", "4h", "1d", "1w"]
+					.map(
+						(tf) => `
+		                <button 
+		                  type="button"
+		                  class="fs-8 pb-0 pt-0 btn btn-no-line btn-timeframe ${
+											tf === interval ? "active" : ""
+										}"
+		                  data-tf="${tf}"
+		                  data-symbol="${symbol}"
+		                >${tf}</button>`
+					)
+					.join("")}
 	            </div>
 
-	            <button id="toggle-volume-${sKey}" class="btn btn-outline-info btn-sm position-absolute" style="top:5px; right:90px; z-index:10;">Hide Volume</button>
-	            <button id="go-latest-${sKey}" class="btn btn-outline-success btn-sm position-absolute" style="top:5px; right:10px; z-index:10;">Latest</button>
+	            <button 
+	              id="toggle-volume-${sKey}" 
+	              class="btn btn-outline-info btn-sm position-absolute" 
+	              style="top:5px; right:90px; z-index:10;">
+	              Hide Volume
+	            </button>
+
+	            <button 
+	              id="go-latest-${sKey}" 
+	              class="btn btn-outline-success btn-sm position-absolute" 
+	              style="top:5px; right:10px; z-index:10;">
+	              Latest
+	            </button>
 
 	            <hr class="w-100">
 	            <div id="${ids.ohlc.pillId}" class="w-100 fs-8 d-none">
@@ -162,12 +183,14 @@ async function createChartCard(symbol, interval = "4h", isRestored = false, volu
 	                <div class="col"><strong>Close:</strong> <span id="${ids.ohlc.close}"></span></div>
 	              </div>
 	            </div>
+
 	            <div id="${ids.spinner}" class="spinner-style" role="status">
 	              <button class="btn btn-primary" type="button" disabled>
 	                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
 	                Loading...
 	              </button>
 	            </div>
+
 	            <div id="${ids.main}" style="height:350px;"></div>
 	          </div>
 	        </div>
@@ -177,34 +200,96 @@ async function createChartCard(symbol, interval = "4h", isRestored = false, volu
 	`;
 
 	// =============================================================
-	// === Init ChartKit ===========================================
+	// === Append and Layout =======================================
 	// =============================================================
 	chartContainer.appendChild(wrapper);
 	activeCharts.add(symbol);
 	layoutCharts();
 	updateDropdownState();
 
+	// =============================================================
+	// === Initialize ChartKit =====================================
+	// =============================================================
 	const src = new BinanceOHLCSource({ symbol: `${symbol}USDT`, interval });
 	const inst = ChartKit.create({
 		key: sKey,
 		containerId: ids.main,
 		spinnerId: ids.spinner,
 		series: [
-			{ name: `${name} (${symbol})`, type: "candlestick", color: "#00E396", dataSource: src, ohlcPill: ids.ohlc },
-			{ name: `${name} Volume`, type: "bar", color: "#8884d8", dataSource: src }
-		]
+			{
+				name: `${name} (${symbol})`,
+				type: "candlestick",
+				color: "#00E396",
+				dataSource: src,
+				ohlcPill: ids.ohlc,
+			},
+			{
+				name: `${name} Volume`,
+				type: "bar",
+				color: "#8884d8",
+				dataSource: src,
+			},
+		],
 	});
 
 	// =============================================================
-	// === Popup Logic =============================================
+	// === Timeframe Buttons =======================================
 	// =============================================================
-	const toolBtn   = wrapper.querySelector(".retr-tool-btn");
-	const popup     = wrapper.querySelector(`#retr-popup-${sKey}`);
-	const closeBtn  = popup.querySelector(".retr-close");
-	const addBtn    = popup.querySelector(".add-retr-btn");
-	const startIn   = popup.querySelector(".retr-start");
-	const endIn     = popup.querySelector(".retr-end");
-	const retrList  = popup.querySelector(".retr-list");
+	wrapper.querySelectorAll(".btn-timeframe").forEach((btn) => {
+		btn.addEventListener("click", async () => {
+			const tf = btn.dataset.tf;
+			const chart = ChartKit.get(sKey);
+			if (!chart) return;
+
+			await chart.changeTimeframe(tf);
+			setActiveTimeframe(wrapper, tf);
+
+			try {
+				const retracements = chart._retracements
+					? Object.values(chart._retracements)
+					: [];
+				await saveChartConfig(chart.key.toUpperCase(), {
+					interval: tf,
+					volumeHidden: chart._volumeHidden ?? false,
+					retracements,
+				});
+			} catch (err) {
+				console.error(`[${sKey}] failed to save timeframe`, err);
+			}
+		});
+	});
+
+	// =============================================================
+	// === Volume Toggle ===========================================
+	// =============================================================
+	const toggleBtn = wrapper.querySelector(`#toggle-volume-${sKey}`);
+	toggleBtn.addEventListener("click", async () => {
+		const chart = ChartKit.get(sKey);
+		if (!chart) return;
+		const newHidden = !chart._volumeHidden;
+		chart.setVolumeHidden(newHidden);
+		toggleBtn.textContent = newHidden ? "Show Volume" : "Hide Volume";
+
+		const retracements = chart._retracements
+			? Object.values(chart._retracements)
+			: [];
+		await saveChartConfig(chart.key.toUpperCase(), {
+			interval: chart.selectedInterval,
+			volumeHidden: newHidden,
+			retracements,
+		});
+	});
+
+	// =============================================================
+	// === Retracement Popup =======================================
+	// =============================================================
+	const toolBtn = wrapper.querySelector(".retr-tool-btn");
+	const popup = wrapper.querySelector(`#retr-popup-${sKey}`);
+	const closeBtn = popup.querySelector(".retr-close");
+	const addBtn = popup.querySelector(".add-retr-btn");
+	const startIn = popup.querySelector(".retr-start");
+	const endIn = popup.querySelector(".retr-end");
+	const retrList = popup.querySelector(".retr-list");
 
 	toolBtn.addEventListener("click", () => popup.classList.toggle("d-none"));
 	closeBtn.addEventListener("click", () => popup.classList.add("d-none"));
@@ -212,31 +297,46 @@ async function createChartCard(symbol, interval = "4h", isRestored = false, volu
 	addBtn.addEventListener("click", async () => {
 		const chart = ChartKit.get(sKey);
 		if (!chart) return;
-		const startDate = startIn.value, endDate = endIn.value;
+
+		const startDate = startIn.value;
+		const endDate = endIn.value;
 		if (!startDate || !endDate) return alert("Select both dates.");
 
-		const candleSeries = chart.seriesDefs.find(s => s.type === "candlestick");
+		const candleSeries = chart.seriesDefs.find((s) => s.type === "candlestick");
 		if (!candleSeries?.data.length) return;
-		const findClosest = t => {
+
+		const findClosest = (t) => {
 			const ms = new Date(t).getTime();
-			return candleSeries.data.reduce((a,b) => Math.abs(a.x - ms) < Math.abs(b.x - ms) ? a : b);
+			return candleSeries.data.reduce((a, b) =>
+				Math.abs(a.x - ms) < Math.abs(b.x - ms) ? a : b
+			);
 		};
-		const start = findClosest(startDate), end = findClosest(endDate);
+
+		const start = findClosest(startDate);
+		const end = findClosest(endDate);
 		const retrId = `retr-${Date.now()}`;
-		chart.addRetracement({ startPrice:start.y[3], endPrice:end.y[3], startDate, endDate, retracementId:retrId });
+		chart.addRetracement({
+			startPrice: start.y[3],
+			endPrice: end.y[3],
+			startDate,
+			endDate,
+			retracementId: retrId,
+		});
 		addRetrCard(retrId, start, end);
 		startIn.value = endIn.value = "";
+
 		await saveChartConfig(chart.key.toUpperCase(), {
 			interval: chart.selectedInterval,
 			volumeHidden: chart._volumeHidden ?? false,
-			retracements: Object.values(chart._retracements ?? {})
+			retracements: Object.values(chart._retracements ?? {}),
 		});
 	});
 
 	function addRetrCard(id, start, end) {
 		const chart = ChartKit.get(sKey);
 		const div = document.createElement("div");
-		div.className = "retr-card mb-2 p-2 rounded border border-secondary bg-dark bg-opacity-75";
+		div.className =
+			"retr-card mb-2 p-2 rounded border border-secondary bg-dark bg-opacity-75";
 		div.innerHTML = `
 		  <div class="d-flex justify-content-between align-items-center mb-1">
 		    <span class="text-warning fw-bold">Retracement</span>
@@ -256,9 +356,13 @@ async function createChartCard(symbol, interval = "4h", isRestored = false, volu
 		div.querySelector(".retr-del").addEventListener("click", () => {
 			delete chart._retracements[id];
 			div.remove();
-			chart.chart.updateOptions({ annotations:{ yaxis:Object.values(chart._retracements)
-				.filter(r=>!r.hidden)
-				.flatMap(r=>r.annotations.yaxis) }});
+			chart.chart.updateOptions({
+				annotations: {
+					yaxis: Object.values(chart._retracements)
+						.filter((r) => !r.hidden)
+						.flatMap((r) => r.annotations.yaxis),
+				},
+			});
 		});
 		retrList.prepend(div);
 	}
@@ -278,10 +382,11 @@ async function createChartCard(symbol, interval = "4h", isRestored = false, volu
 		layoutCharts();
 		updateDropdownState();
 		ChartKit.resizeAll();
-		await fetch(`/api/user/chart-settings/${symbol}`, { method:"DELETE" });
+		await fetch(`/api/user/chart-settings/${symbol}`, { method: "DELETE" });
 	});
 
-	if (!isRestored) await saveChartConfig(symbol, interval, false, []);
+	if (!isRestored)
+		await saveChartConfig(symbol, interval, false, []);
 	return inst;
 }
 
