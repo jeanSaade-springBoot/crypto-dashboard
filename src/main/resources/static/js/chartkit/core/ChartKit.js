@@ -42,21 +42,28 @@
 
 			return inst;
 		}
+		onRetracementsChanged = null;   // set by the page
+
+		_emitRetrChanged() {
+			if (typeof this.onRetracementsChanged === "function") {
+				try { this.onRetracementsChanged(this); } catch (e) { console.warn(e); }
+			}
+		}
 		restoreUserSettings() {
-		  const all = JSON.parse(localStorage.getItem("chartSettings") || "{}");
-		  const settings = all[this.key];
-		  if (!settings) return;
-		
-		  if (settings.interval) this.selectedInterval = settings.interval;
-		  if (settings.volumeHidden) this._volumeHidden = true;
-		
-		  // retracements can be redrawn if stored
-		  if (settings.retracements?.length && this._retracements) {
-		    for (const rId of settings.retracements) {
-		      const r = this._retracements[rId];
-		      if (r) this.addRetracement(r.params);
-		    }
-		  }
+			const all = JSON.parse(localStorage.getItem("chartSettings") || "{}");
+			const settings = all[this.key];
+			if (!settings) return;
+
+			if (settings.interval) this.selectedInterval = settings.interval;
+			if (settings.volumeHidden) this._volumeHidden = true;
+
+			// retracements can be redrawn if stored
+			if (settings.retracements?.length && this._retracements) {
+				for (const rId of settings.retracements) {
+					const r = this._retracements[rId];
+					if (r) this.addRetracement(r.params);
+				}
+			}
 		}
 		static get(key) {
 			return ChartKit.registry.get(key);
@@ -293,74 +300,74 @@
 			this.updateLoadedLabel(min, max);
 		}
 		setVolumeHidden(hidden) {
-	if (!this.chart) return;
+			if (!this.chart) return;
 
-	const volIndex = this.chart.w.config.series.findIndex(s => s.name === "Volume");
-	const hasVolumeSeries = volIndex !== -1;
-	const candleSeries = this.seriesDefs.find(s => s.type === "candlestick");
+			const volIndex = this.chart.w.config.series.findIndex(s => s.name === "Volume");
+			const hasVolumeSeries = volIndex !== -1;
+			const candleSeries = this.seriesDefs.find(s => s.type === "candlestick");
 
-	// 🧩 Freeze current axis ranges before update
-	const currentYaxis = this.chart.w.config.yaxis[0];
-	const lockedYmin = currentYaxis.min ?? this.chart.w.globals.minY;
-	const lockedYmax = currentYaxis.max ?? this.chart.w.globals.maxY;
-	const lockedXmin = this.chart.w.config.xaxis.min ?? this.chart.w.globals.minX;
-	const lockedXmax = this.chart.w.config.xaxis.max ?? this.chart.w.globals.maxX;
+			// 🧩 Freeze current axis ranges before update
+			const currentYaxis = this.chart.w.config.yaxis[0];
+			const lockedYmin = currentYaxis.min ?? this.chart.w.globals.minY;
+			const lockedYmax = currentYaxis.max ?? this.chart.w.globals.maxY;
+			const lockedXmin = this.chart.w.config.xaxis.min ?? this.chart.w.globals.minX;
+			const lockedXmax = this.chart.w.config.xaxis.max ?? this.chart.w.globals.maxX;
 
-	// Helper: rebuild volume data fresh
-	const rebuildVolumeData = () =>
-		(candleSeries?.data || []).map(p => {
-			const [O, H, L, C] = p.y;
-			const bullish = C >= O;
-			return {
-				x: p.x,
-				y: p.volume || 0,
-				fillColor: bullish ? "#00E39680" : "#FF456080",
-			};
-		});
+			// Helper: rebuild volume data fresh
+			const rebuildVolumeData = () =>
+				(candleSeries?.data || []).map(p => {
+					const [O, H, L, C] = p.y;
+					const bullish = C >= O;
+					return {
+						x: p.x,
+						y: p.volume || 0,
+						fillColor: bullish ? "#00E39680" : "#FF456080",
+					};
+				});
 
-	// ✅ Set the hidden state directly (not toggling)
-	this._volumeHidden = !!hidden;
+			// ✅ Set the hidden state directly (not toggling)
+			this._volumeHidden = !!hidden;
 
-	if (this._volumeHidden) {
-		// hide volume
-		if (hasVolumeSeries) this.chart.w.config.series[volIndex].data = [];
-	} else {
-		// show volume again
-		if (hasVolumeSeries) {
-			this.chart.w.config.series[volIndex].data = rebuildVolumeData();
-		} else {
-			const volSeries = {
-				name: "Volume",
-				type: "bar",
-				yAxisIndex: 1,
-				showInLegend: false,
-				opacity: 0.4,
-				data: rebuildVolumeData(),
-			};
-			this.chart.w.config.series.push(volSeries);
+			if (this._volumeHidden) {
+				// hide volume
+				if (hasVolumeSeries) this.chart.w.config.series[volIndex].data = [];
+			} else {
+				// show volume again
+				if (hasVolumeSeries) {
+					this.chart.w.config.series[volIndex].data = rebuildVolumeData();
+				} else {
+					const volSeries = {
+						name: "Volume",
+						type: "bar",
+						yAxisIndex: 1,
+						showInLegend: false,
+						opacity: 0.4,
+						data: rebuildVolumeData(),
+					};
+					this.chart.w.config.series.push(volSeries);
+				}
+			}
+
+			// ✅ update safely
+			this.chart.updateSeries(this.chart.w.config.series, false);
+
+			// ✅ restore both Y & X axis ranges to freeze zoom/scroll
+			this.chart.updateOptions({
+				yaxis: [
+					{ ...this.apexOptions.yaxis[0], min: lockedYmin, max: lockedYmax },
+					this.apexOptions.yaxis[1],
+				],
+				xaxis: {
+					...this.apexOptions.xaxis,
+					min: lockedXmin,
+					max: lockedXmax,
+				},
+			}, false, false);
+
+			this.saveUserSettings(); // persist state
+
+			return this._volumeHidden; // ✅ return current state for convenience
 		}
-	}
-
-	// ✅ update safely
-	this.chart.updateSeries(this.chart.w.config.series, false);
-
-	// ✅ restore both Y & X axis ranges to freeze zoom/scroll
-	this.chart.updateOptions({
-		yaxis: [
-			{ ...this.apexOptions.yaxis[0], min: lockedYmin, max: lockedYmax },
-			this.apexOptions.yaxis[1],
-		],
-		xaxis: {
-			...this.apexOptions.xaxis,
-			min: lockedXmin,
-			max: lockedXmax,
-		},
-	}, false, false);
-
-	this.saveUserSettings(); // persist state
-
-	return this._volumeHidden; // ✅ return current state for convenience
-}
 
 
 		async initialLoad() {
@@ -386,13 +393,13 @@
 				this.refreshLatestOHLCLabels();
 				this.updateLoadedLabel(min, max);
 				if (typeof this.onReady === "function") {
-			try {
-					this.onReady();
-				} catch (err) {
-					console.error(`[${this.key}] onReady handler failed:`, err);
+					try {
+						this.onReady();
+					} catch (err) {
+						console.error(`[${this.key}] onReady handler failed:`, err);
+					}
 				}
-			}
-			
+
 			} catch (e) {
 				console.error(`[${this.key}] initial load failed:`, e);
 			} finally {
@@ -630,128 +637,162 @@
 				)} (len ${this.seriesDefs[0]?.data.length || 0})`
 			);
 		}
-	addRetracement({ startPrice, endPrice, startDate, endDate, retracementId }) {
-  if (!this.chart) return;
+		addRetracement({ startPrice, endPrice, startDate, endDate, retracementId, hidden = undefined, fibos = undefined }) {
+			if (!this.chart) return;
 
-  const isUptrend = endPrice > startPrice;
-  const retracements = calculateRetracements(startPrice, endPrice);
+			const isUptrend = endPrice > startPrice;
+			const xStart = new Date(startDate).getTime();
+			const levels = ["10%", "25%", "33%", "38%", "50%", "62%", "66%", "75%"];
 
-  // --- 🟢 Always include Start & End as horizontal lines ---
-  const x = new Date(startDate).getTime();
-  const yAnnotations = [
-    {
-	  x,
-      y: startPrice,
-      y2:null,
-      strokeDashArray: 0,
-      borderColor: "#00ffff",
-      label: {
-		textAnchor:  'c',
-        text: `Start (${fmtNum(startPrice)})`,
-        borderColor: "transparent",
-        style: {
-          color: "#00ffff",
-          background: "transparent",
-          fontSize: "10px",
-          fontWeight: "bold",
-        },
-      },
-    },
-    {
-	  x,
-      y: endPrice,
-      strokeDashArray: 0,
-      borderColor: "#00ffff",
-      label: {
-		textAnchor:  'start',
-        text: `End (${fmtNum(endPrice)})`,
-        borderColor: "transparent",
-        style: {
-          color: "#00ffff",
-          background: "transparent",
-          fontSize: "10px",
-          fontWeight: "bold",
-        },
-      },
-    },
-  ];
+			// --- Start & End lines (always stored) ---
+			const yAnnotations = [
+				{
+					x: xStart,
+					y: startPrice,
+					y2: null,
+					strokeDashArray: 0,
+					borderColor: "#00ffff",
+					label: {
+						textAnchor: "start",
+						text: `Start (${fmtNum(startPrice)})`,
+						borderColor: "transparent",
+						style: { color: "#00ffff", background: "transparent", fontSize: "10px", fontWeight: "bold" },
+					},
+				},
+				{
+					x: xStart,
+					y: endPrice,
+					y2: null,
+					strokeDashArray: 0,
+					borderColor: "#00ffff",
+					label: {
+						textAnchor: "start",
+						text: `End (${fmtNum(endPrice)})`,
+						borderColor: "transparent",
+						style: { color: "#00ffff", background: "transparent", fontSize: "10px", fontWeight: "bold" },
+					},
+				},
+			];
 
-  // --- 🟢 Add intermediate retracement levels ---
-  const retracementLines = Object.entries(retracements).map(([label, price]) => ({
-    x,
-    y: price,
-    strokeDashArray: 1,
-    borderColor: isUptrend ? "#00ffff" : "#ff4560",
-    opacity: 0.3,
-    label: {
-	  textAnchor:  'start',
-      text: `${label} (${price.toFixed(2)})`,
-      borderColor: "transparent",
-      style: {
-        color: "#fff",
-        background: "transparent",
-        fontSize: "10px",
-      },
-    },
-  }));
+			// --- Fibo lines (all stored; visibility handled by fibo map) ---
+			const retracements = calculateRetracements(startPrice, endPrice); // { "10%": price, ... }
+			const fiboLines = Object.entries(retracements).map(([label, price]) => ({
+				x: xStart,
+				y: price,
+				y2: null,
+				strokeDashArray: 1,
+				borderColor: isUptrend ? "#00ffff" : "#ff4560",
+				opacity: 0.3,
+				label: {
+					textAnchor: "start",
+					text: `${label} (${price.toFixed(2)})`,
+					borderColor: "transparent",
+					style: { color: "#fff", background: "transparent", fontSize: "10px" },
+				},
+			}));
+			yAnnotations.push(...fiboLines);
 
-  yAnnotations.push(...retracementLines);
+			// --- Store full retracement (data + annotations) ---
+			if (!this._retracements) this._retracements = {};
+			const existing = this._retracements[retracementId]; // preserve if re-adding
+			const defaultFibos = levels.reduce((acc, lvl) => (acc[lvl] = true, acc), {});
+			
+			// 🧩 preserve or apply passed-in hidden/fibo settings
+			const hiddenVal =
+			  typeof arguments[0]?.hidden === "boolean"
+			    ? arguments[0].hidden
+			    : existing?.hidden ?? false;
+			
+			const fibosVal =
+			  arguments[0]?.fibos
+			    ? { ...defaultFibos, ...arguments[0].fibos } // merge user fibos with defaults
+			    : existing?.fibos ?? defaultFibos;
+			
+			this._retracements[retracementId] = {
+			  params: { startPrice, endPrice, startDate, endDate },
+			  annotations: { yaxis: yAnnotations },
+			  hidden: hiddenVal,
+			  fibos: fibosVal,
+			};
 
-  // --- 🧠 Store retracement for later toggle ---
-  if (!this._retracements) this._retracements = {};
-  this._retracements[retracementId] = {
-    params: { startPrice, endPrice, startDate, endDate },
-    annotations: { yaxis: yAnnotations },
-    hidden: false,
-  };
+			// Centralized render (ensures Start/End re-appear when shown)
+			this.rebuildVisibleAnnotations();
+			this._emitRetrChanged();   // <--- notify
 
-  // --- 🧩 Update chart ---
-  this.chart.updateOptions(
-    {
-      annotations: {
-        yaxis: Object.values(this._retracements)
-          .filter(r => !r.hidden)
-          .flatMap(r => r.annotations.yaxis),
-      },
-    },
-    false,
-    false
-  );
-}
+		}
+		// === Retracement helpers (inside class) ==========================
+		isStartEndLine(y) {
+			const t = y?.label?.text || "";
+			return /^Start\b/i.test(t) || /^End\b/i.test(t);
+		}
 
+		rebuildVisibleAnnotations() {
+			if (!this.chart) return;
+
+			const allYaxis = [];
+			const retrs = Object.values(this._retracements || {});
+
+			for (const r of retrs) {
+				if (r.hidden) continue; // skip fully hidden retracements
+
+				const fibosToKeep = Object.keys(r.fibos || {}).filter(f => r.fibos[f] === true);
+
+				const lines = (r.annotations?.yaxis || []).filter(y => {
+					// Always include Start/End when retracement is visible
+					if (this.isStartEndLine(y)) return true;
+
+					// For fibo lines, respect per-level visibility
+					if (fibosToKeep.length === 0) return false;
+					const label = y.label?.text || "";
+					return fibosToKeep.some(level => label.includes(level));
+				});
+
+				allYaxis.push(...lines);
+			}
+
+			this.chart.updateOptions({ annotations: { yaxis: allYaxis } }, false, false);
+		}
 		toggleRetracement(retracementId) {
 			if (!this._retracements || !this._retracements[retracementId]) return;
+			this._retracements[retracementId].hidden = !this._retracements[retracementId].hidden;
+			this.rebuildVisibleAnnotations();
+			this._emitRetrChanged();   // <--- notify
 
-			const retr = this._retracements[retracementId];
-			retr.hidden = !retr.hidden;
-
-			this.chart.updateOptions({
-				annotations: {
-					yaxis: Object.values(this._retracements)
-						.filter(r => !r.hidden)
-						.flatMap(r => r.annotations),
-				},
-			}, false, false);
 		}
-		
+		setFiboVisible(retracementId, level, isVisible) {
+			const r = this._retracements?.[retracementId];
+			if (!r) return;
+			r.fibos = r.fibos || {};
+			r.fibos[level] = !!isVisible;
+			this.rebuildVisibleAnnotations();
+			this._emitRetrChanged();
+		}
+
+		deleteRetracement(retracementId) {
+			if (!this._retracements?.[retracementId]) return;
+			delete this._retracements[retracementId];
+			this.rebuildVisibleAnnotations();
+			this._emitRetrChanged();
+		}
+
 		saveUserSettings() {
-  const settings = {
-    key: this.key,
-    symbol: this.seriesDefs[0]?.name || "",
-    interval: this.selectedInterval,
-    volumeHidden: this._volumeHidden || false,
-    retracements: this._retracements
-      ? Object.keys(this._retracements)
-      : [],
-  };
+			const settings = {
+				key: this.key,
+				symbol: this.seriesDefs[0]?.name || "",
+				interval: this.selectedInterval,
+				volumeHidden: this._volumeHidden || false,
+				retracements: this._retracements
+					? Object.keys(this._retracements)
+					: [],
+			};
 
-  // Save to localStorage (or send to backend)
-  const all = JSON.parse(localStorage.getItem("chartSettings") || "{}");
-  all[this.key] = settings;
-  localStorage.setItem("chartSettings", JSON.stringify(all));
-}
+			// Save to localStorage (or send to backend)
+			const all = JSON.parse(localStorage.getItem("chartSettings") || "{}");
+			all[this.key] = settings;
+			localStorage.setItem("chartSettings", JSON.stringify(all));
+		}
 
-// class ending
+		// class ending
 
 	}
 

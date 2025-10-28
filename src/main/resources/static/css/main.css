@@ -73,8 +73,315 @@ body {
   height: 18px;
   vertical-align: middle;
 }
-.icon-small path {
-  fill: white;
+/* === RETRACEMENT PANEL PRO STYLE === */
+.pro-panel {
+  width: 270px;
+  background: #1c2e38;
+  color: #d4d7dd;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 14px;
+  border-right: 1px solid #1f2632;
+  box-shadow: 2px 0 6px rgba(0,0,0,0.4);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.retr-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.retr-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #ffc107;
+}
+.retr-close {
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: none;
+  opacity: 0.7;
+  filter: invert(1);
+  transition: opacity 0.2s;
+}
+.retr-close:hover { opacity: 1; }
+
+.retr-section {
+  background: #1c2e38;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 14px;
+  box-shadow: inset 0 0 4px rgba(255,255,255,0.03);
+}
+
+.retr-form label {
+  font-size: 0.8rem;
+  color: #9da3af;
+  margin-top: 4px;
+}
+.retr-form input {
+  background: #1c2535;
+  border: 1px solid #2b3648;
+  color: #eaeaea;
+  border-radius: 6px;
+}
+.retr-form input:focus {
+  border-color: #00e396;
+  box-shadow: 0 0 4px #00e39660;
+}
+.retr-form button {
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  transition: all 0.3s;
+}
+.retr-form button:hover {
+  box-shadow: 0 0 10px #00e39670;
+  transform: scale(1.03);
+}
+
+
+/* === RETRACEMENT CARD === */
+
+.retr-card:hover {
+ background: #405988;
+    border: 1px solid #58788a !important;
+}
+.retr-card.is-dimmed {
+  opacity: 0.5;
+  filter: grayscale(0.6);
+}
+
+.retr-card .retr-dates {
+  font-size: 0.78rem;
+  color: #9da3af;
+  margin-bottom: 6px;
+}
+.retr-card .btn {
+  padding: 2px 5px;
+  font-size: 0.7rem;
+  border-radius: 6px;
+}
+
+.retr-fibos {
+  border-top: 1px solid #1f2937;
+  margin-top: 6px;
+  padding-top: 6px;
+}
+.retr-fibos .fibo-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  padding: 3px 0;
+}
+.fibo-row span {
+  color: #9da3af;
+}
+.fibo-toggle {
+  border: none;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  transition: color 0.2s, transform 0.2s;
+}
+.fibo-toggle:hover {
+  color: #00e396;
+  transform: scale(1.2);
+}
+
+/* === SCROLLBAR === */
+.scrollable {
+  max-height: 380px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3f4b #0d111a;
+}
+.scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollable::-webkit-scrollbar-thumb {
+  background: #3a3f4b;
+  border-radius: 3px;
+}
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: #9da3af;
+  padding: 3px;
+  border-radius: 5px;
+  transition: color 0.2s, background 0.2s;
+}
+.icon-btn:hover {
+  color: #00e396;
+  background: rgba(0,227,150,0.08);
+}
+.fibo-toggle svg {
+  stroke: currentColor;
+  transition: color 0.2s, transform 0.2s;
+}
+.fibo-toggle {
+  background: transparent;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.fibo-toggle:hover {
+  color: #00e396;
+  background: rgba(0,227,150,0.1);
+  transform: scale(1.1);
+}
+
+.icon-eye {
+  color: #00e396;
+}
+
+.icon-eye-off {
+  color: #ff5555;
+}
+
+/* Collapsible Section */
+.retr-form-container {
+  border-radius: 10px;
+  overflow: hidden;
+}
+.retr-form-container .retr-section-header {
+}
+.retr-form-toggle {
+  background: transparent;
+  border: none;
+  color: #9da3af;
+  padding: 2px;
+  border-radius: 5px;
+  transition: color 0.2s, transform 0.2s;
+}
+.retr-form-toggle:hover {
+  color: #00e396;
+  transform: rotate(90deg);
+}
+
+/* Smooth collapse animation */
+.retr-form-content {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-5px);
+  transition: all 0.3s ease;
+}
+.retr-form-content.open {
+  max-height: 400px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Input with icon */
+.fake-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: #1c2535;
+  border: 1px solid #2b3648;
+  border-radius: 6px;
+  padding: 0 8px;
+  height: 32px;
+}
+.fake-input svg {
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+.fake-input input {
+  background: transparent;
+  border: none;
+  color: #eee;
+  width: 100%;
+  font-size: 0.85rem;
+}
+.fake-input input:focus {
+  outline: none;
+}
+.fake-input:hover {
+  border-color: #00e396;
+}
+
+/* Transition glow on Add button */
+.glow-btn:hover {
+  box-shadow: 0 0 10px #00e39680;
+  transform: scale(1.02);
+}
+.input-wrapper input[type="date"] {
+  background: #1c2535;
+  border: 1px solid #2b3648;
+  color: #eaeaea;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  height: 32px;
+  padding: 4px 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Placeholder text */
+.input-wrapper input[type="date"]::placeholder {
+  color: #6b7280;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+/* When focused */
+.input-wrapper input[type="date"]:focus {
+  outline: none;
+  border-color: #00e396;
+  box-shadow: 0 0 6px #00e39650;
+}
+
+/* Make the native date picker icon match theme */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.8);
+  opacity: 0.8;
+  cursor: pointer;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Remove the old fake-input container styling */
+.fake-input { display: none; }
+.collapsible {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: all 0.3s ease;
+}
+.collapsible.open {
+  max-height: 600px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.retr-collapse-toggle svg {
+  transition: transform 0.25s ease;
+}
+.retr-card-header {
+  border-bottom: 1px solid #1e293b;
+  padding-bottom: 4px;
 }
 a {
   text-decoration: none;
