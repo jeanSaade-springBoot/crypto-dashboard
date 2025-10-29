@@ -12,6 +12,7 @@ import com.crypto.analysis.repository.UserChartSettingsRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import javax.transaction.Transactional;
 
@@ -22,7 +23,7 @@ public class UserChartSettingsService {
     private final UserChartSettingsRepository userChartSettingsRepository;
     
     public List<UserChartSettings> getAllForUser(String userName) {
-        return userChartSettingsRepository.findByUserName(userName);
+        return userChartSettingsRepository.findByUserNameOrderByOrderIndexAsc(userName);
     }
 
     public UserChartSettings getOrCreate(String userName, String symbol) {
@@ -33,6 +34,9 @@ public class UserChartSettingsService {
                                 .symbol(symbol)
                                 .build()
                 ));
+    }
+    public Optional<UserChartSettings> findByUserNameAndSymbol(String userName, String symbol) {
+        return userChartSettingsRepository.findByUserNameAndSymbol(userName, symbol);
     }
 
     public UserChartSettings saveOrUpdate(UserChartSettings dto) {
@@ -76,6 +80,7 @@ public class UserChartSettingsService {
                 .ifPresent(userChartSettingsRepository::delete);
         
     }
+
 
 
 }

@@ -7,6 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import com.crypto.analysis.domain.UserChartSettings;
+import com.crypto.analysis.dto.ChartOrderDTO;
 import com.crypto.analysis.service.UserChartSettingsService;
 
 import java.util.List;
@@ -44,7 +45,21 @@ public class UserChartSettingsController {
         body.setUserName(authentication.getName());
         return userChartSettingsService.saveOrUpdate(body);
     }
-
+    
+    @PostMapping("/order")
+    public ResponseEntity<?> updateChartOrder(
+    		 Authentication authentication,
+            @RequestBody List<ChartOrderDTO> orderList
+    ) {
+        orderList.forEach(order -> {
+        	userChartSettingsService.findByUserNameAndSymbol(authentication.getName(), order.getSymbol()).ifPresent(setting -> {
+                setting.setOrderIndex(order.getOrderIndex());
+                userChartSettingsService.saveOrUpdate(setting);
+            });
+        });
+        return ResponseEntity.ok().build();
+    }
+    
     @DeleteMapping("/{symbol}")
     public ResponseEntity<Void> deleteChart(
             @PathVariable String symbol,

@@ -46,6 +46,10 @@ public class UserChartSettings {
     @Builder.Default
     private String retracements = "[]"; // stored as JSON text
 
+    @Column(name = "order_index")
+    @Builder.Default
+    private Integer orderIndex = 0;
+    
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

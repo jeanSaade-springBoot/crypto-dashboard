@@ -16,19 +16,20 @@
 	}
 	// === Retracement Math Helper ===
 	function calculateRetracements(startPrice, endPrice) {
-		const diff = endPrice - startPrice;
-		const retracements = {
-			"10%": endPrice - diff * 0.10,
-			"25%": endPrice - diff * 0.25,
-			"33%": endPrice - diff * 0.33,
-			"38%": endPrice - diff * 0.382,
-			"50%": endPrice - diff * 0.5,
-			"62%": endPrice - diff * 0.618,
-			"66%": endPrice - diff * 0.666,
-			"75%": endPrice - diff * 0.75,
-		};
-		return retracements;
-	}
+	const diff = endPrice - startPrice;
+	const retracements = {
+		"10%": endPrice - diff * 0.10,
+		"25%": endPrice - diff * 0.25,
+		"33%": endPrice - diff * 0.33,
+		"38%": endPrice - diff * 0.382,   // Fibonacci
+		"50%": endPrice - diff * 0.5,     // Fibonacci
+		"61.8%": endPrice - diff * 0.618, // Fibonacci (new)
+		"66%": endPrice - diff * 0.666,
+		"75%": endPrice - diff * 0.75,
+		"78.6%": endPrice - diff * 0.786, // Fibonacci (new)
+	};
+	return retracements;
+}
 	class ChartKit {
 		static registry = new Map();
 
@@ -73,7 +74,7 @@
 			const total = ChartKit.registry.size;
 			let dynamicHeight = 300; // fallback default;
 
-			/*// 🧩 Different rules for count
+			// 🧩 Different rules for count
 			if (total === 1) {
 				dynamicHeight = window.innerHeight - 269; // full screen
 			} else if (total === 2) {
@@ -84,7 +85,7 @@
 			} else {
 				dynamicHeight = 300; // fallback default
 			}
-*/
+
 			// ✅ Only resize *existing* charts when 3 or more
 			ChartKit.registry.forEach((chart) => {
 				if (!chart.chart) return;
@@ -109,7 +110,7 @@
 			this.spinnerId = cfg.spinnerId || null;
 			this.loadedLabelId = cfg.loadedLabelId || null;
 			this.windowSize = cfg.windowSize ?? 120;
-
+			this.totalCharts = cfg.totalCharts;
 			this.seriesDefs = (cfg.series || []).map((s, i) => ({
 				id: i,
 				name: s.name ?? `S${i + 1}`,
@@ -149,13 +150,13 @@
 		makeDefaultApexOptions() {
 			const self = this;
 			// Dynamically adjust chart height based on how many charts are visible
-			const totalCharts = ChartKit.registry.size || 1;
+			const totalCharts = self.totalCharts || 1;
 			let dynamicHeight = 300;
 
-			/*if (totalCharts === 1) dynamicHeight = window.innerHeight - 269; // full screen (minus some margin)
+			if (totalCharts === 1) dynamicHeight = window.innerHeight - 269; // full screen (minus some margin)
 			else if (totalCharts === 2) dynamicHeight = (window.innerHeight - 100) / 2;
 			else dynamicHeight = 300; // fallback default
-*/
+
 			return {
 				chart: {
 					type: "candlestick",
@@ -642,8 +643,13 @@
 
 			const isUptrend = endPrice > startPrice;
 			const xStart = new Date(startDate).getTime();
-			const levels = ["10%", "25%", "33%", "38%", "50%", "62%", "66%", "75%"];
-
+			const levels = [
+				  "10%", "25%", "33%", 
+				  "38%", "50%", 
+				  "61.8%",
+				  "66%", "75%", 
+				  "78.6%"          // new fibo
+				];
 			// --- Start & End lines (always stored) ---
 			const yAnnotations = [
 				{
@@ -676,20 +682,34 @@
 
 			// --- Fibo lines (all stored; visibility handled by fibo map) ---
 			const retracements = calculateRetracements(startPrice, endPrice); // { "10%": price, ... }
-			const fiboLines = Object.entries(retracements).map(([label, price]) => ({
-				x: xStart,
-				y: price,
-				y2: null,
-				strokeDashArray: 1,
-				borderColor: isUptrend ? "#00ffff" : "#ff4560",
-				opacity: 0.3,
-				label: {
-					textAnchor: "start",
-					text: `${label} (${price.toFixed(2)})`,
-					borderColor: "transparent",
-					style: { color: "#fff", background: "transparent", fontSize: "10px" },
-				},
-			}));
+			const trueFibo = ["38%", "50%", "61.8%", "78.6%"];
+
+			const fiboLines = Object.entries(retracements).map(([label, price]) => {
+				const isTrueFibo = trueFibo.includes(label);
+				return {
+					x: xStart,
+					y: price,
+					y2: null,
+					strokeDashArray: isTrueFibo ? 0 : 2,
+					borderColor: isTrueFibo
+						? (isUptrend ? "#FFD700" : "#FFA500") // gold/orange for real fibos
+						: (isUptrend ? "#00ffff" : "#ff4560"),
+					opacity: isTrueFibo ? 0.9 : 0.4,
+					label: {
+						textAnchor: "start",
+						text: isTrueFibo
+							? `${label} (${price.toFixed(2)}) (Fibo)`
+							: `${label} (${price.toFixed(2)})`,
+						borderColor: "transparent",
+						style: {
+							color: isTrueFibo ? "#FFD700" : "#fff",
+							background: "transparent",
+							fontSize: "10px",
+							fontWeight: isTrueFibo ? "bold" : "normal",
+						},
+					},
+				};
+			});
 			yAnnotations.push(...fiboLines);
 
 			// --- Store full retracement (data + annotations) ---
@@ -733,23 +753,20 @@
 			const retrs = Object.values(this._retracements || {});
 
 			for (const r of retrs) {
-				if (r.hidden) continue; // skip fully hidden retracements
-
+				// ⛔ If retracement is hidden, skip *everything*
+				if (r.hidden) continue;
+			
 				const fibosToKeep = Object.keys(r.fibos || {}).filter(f => r.fibos[f] === true);
-
+			
 				const lines = (r.annotations?.yaxis || []).filter(y => {
-					// Always include Start/End when retracement is visible
-					if (this.isStartEndLine(y)) return true;
-
-					// For fibo lines, respect per-level visibility
-					if (fibosToKeep.length === 0) return false;
 					const label = y.label?.text || "";
+					// Always include Start/End only if retracement is visible
+					if (this.isStartEndLine(y)) return true;
 					return fibosToKeep.some(level => label.includes(level));
 				});
-
+			
 				allYaxis.push(...lines);
 			}
-
 			this.chart.updateOptions({ annotations: { yaxis: allYaxis } }, false, false);
 		}
 		toggleRetracement(retracementId) {

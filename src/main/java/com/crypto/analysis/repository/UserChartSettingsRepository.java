@@ -9,5 +9,6 @@ import java.util.Optional;
 
 public interface UserChartSettingsRepository extends JpaRepository<UserChartSettings, Long> {
     List<UserChartSettings> findByUserName(String userName);
+    List<UserChartSettings> findByUserNameOrderByOrderIndexAsc(String userName);
     Optional<UserChartSettings> findByUserNameAndSymbol(String userName, String symbol);
 }

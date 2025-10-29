@@ -88,7 +88,7 @@ document.addEventListener("DOMContentLoaded", function() {
 	// ---------------------------------------------------------------
 	// === Create chart card =========================================
 	// ---------------------------------------------------------------
-	async function createChartCard(symbol, interval = "4h", isRestored = false, volumeHidden = false) {
+	async function createChartCard(symbol, totalCharts = 1, interval = "4h", isRestored = false, volumeHidden = false) {
 		if (activeCharts.has(symbol) || activeCharts.size >= 4) return;
 
 		const { name, img } = cryptoData[symbol];
@@ -111,17 +111,9 @@ document.addEventListener("DOMContentLoaded", function() {
 	        <div>${name} (${symbol})</div>
 	      </div>
 	      <button class="btn-trash btn-sm remove-chart" aria-label="Close">
-	        
-	     <svg class="icon-small" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-		  <!-- Lid line -->
-		  <path d="M4 7H20" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-		  <!-- Body -->
-		  <path d="M6 10L7.70141 19.3578C7.87432 20.3088 8.70258 21 9.66915 21H14.3308C15.2974 21 16.1257 20.3087 16.2986 19.3578L18 10" 
-		        stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-		  <!-- Handle -->
-		  <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5V7H9V5Z" 
-		        stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-		</svg>
+	      <svg class="icon-small" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
 
 	      </button>
 	    </div>
@@ -142,24 +134,25 @@ document.addEventListener("DOMContentLoaded", function() {
 	        </div>
 
 	        <!-- Popup panel (hidden on load) -->
-	       <div class="retr-popup pro-panel d-none" id="retr-popup-${sKey}">
+	       <div class="retr-popup pro-panel pt-0 d-none" id="retr-popup-${sKey}">
 			  <div class="retr-header">
-			    <div class="retr-title">
-			      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffc107" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+			    <div class="retr-title d-none">
 			      <span>Retracement Tool</span>
 			    </div>
-			    <button class="btn-close retr-close" title="Close"></button>
 			  </div>
 			
 			  <div class="retr-section retr-form-container">
 				  <div class="retr-section-header d-flex justify-content-between align-items-center">
-				    <span class="text-white fw-semibold">Add Retracement</span>
+				   	 <button class="btn-close retr-close d-none" title="Close"></button>
+
+				    <span class="text-white fw-semibold">Retracement</span>
 				    <button class="icon-btn retr-form-toggle" title="Show/Hide Add Section">
 				      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 				        <line x1="12" y1="5" x2="12" y2="19"></line>
 				        <line x1="5" y1="12" x2="19" y2="12"></line>
 				      </svg>
 				    </button>
+
 				  </div>
 				
 				  <div class="retr-form-content ">
@@ -180,12 +173,15 @@ document.addEventListener("DOMContentLoaded", function() {
 				      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 				      <span class="ms-1">Add Retracement</span>
 				    </button>
+				    <button class="btn btn-outline-secondary btn-sm w-100 fw-semibold mt-2 cancel-edit-btn d-none">
+					  Cancel Edit
+					</button>
 				  </div>
 				</div>
 			
 			  <div class="retr-section retr-list-section">
 			    <div class="retr-section-header mb-2">
-			      <span>Saved Retracements</span>
+			      <span></span>
 			    </div>
 			    <div class="retr-list scrollable"></div>
 			  </div>
@@ -265,6 +261,7 @@ document.addEventListener("DOMContentLoaded", function() {
 			key: sKey,
 			containerId: ids.main,
 			spinnerId: ids.spinner,
+			totalCharts: totalCharts,
 			series: [
 				{
 					name: `${name} (${symbol})`,
@@ -342,27 +339,27 @@ document.addEventListener("DOMContentLoaded", function() {
 		const retrList = popup.querySelector(".retr-list");
 		// --- show a real placeholder for date inputs ---
 		function enhanceDateInput(input, placeholder = "Choose date") {
-		  // Start as text so placeholder is visible
-		  input.type = "text";
-		  input.placeholder = placeholder;
-		
-		  const toDate = () => {
-		    if (input.type !== "date") input.type = "date";
-		    // open native picker when supported
-		    if (input.showPicker) {
-		      try { input.showPicker(); } catch {}
-		    }
-		  };
-		  const toTextIfEmpty = () => {
-		    if (!input.value) {
-		      input.type = "text";
-		      input.placeholder = placeholder;
-		    }
-		  };
-		
-		  input.addEventListener("focus", toDate);
-		  input.addEventListener("click", toDate);   // helpful on Safari
-		  input.addEventListener("blur", toTextIfEmpty);
+			// Start as text so placeholder is visible
+			input.type = "text";
+			input.placeholder = placeholder;
+
+			const toDate = () => {
+				if (input.type !== "date") input.type = "date";
+				// open native picker when supported
+				if (input.showPicker) {
+					try { input.showPicker(); } catch { }
+				}
+			};
+			const toTextIfEmpty = () => {
+				if (!input.value) {
+					input.type = "text";
+					input.placeholder = placeholder;
+				}
+			};
+
+			input.addEventListener("focus", toDate);
+			input.addEventListener("click", toDate);   // helpful on Safari
+			input.addEventListener("blur", toTextIfEmpty);
 		}
 		enhanceDateInput(startIn);
 		enhanceDateInput(endIn);
@@ -378,105 +375,152 @@ document.addEventListener("DOMContentLoaded", function() {
 			const endDate = endIn.value;
 			if (!startDate || !endDate) return alert("Select both dates.");
 
-			const candleSeries = chart.seriesDefs.find((s) => s.type === "candlestick");
+			const candleSeries = chart.seriesDefs.find(s => s.type === "candlestick");
 			if (!candleSeries?.data.length) return;
 
-			const findClosest = (t) => {
-				const ms = new Date(t).getTime();
-				return candleSeries.data.reduce((a, b) =>
-					Math.abs(a.x - ms) < Math.abs(b.x - ms) ? a : b
-				);
-			};
+			const candles = candleSeries.data;
+			const toDateStr = ts => new Date(ts).toISOString().split("T")[0];
 
-			const newStart = findClosest(startDate);
-			const newEnd = findClosest(endDate);
+			// Collect all candles for a specific date
+			const getCandlesForDate = d =>
+				candles.filter(c => toDateStr(c.x) === d);
 
+			const startCandles = getCandlesForDate(startDate);
+			const endCandles = getCandlesForDate(endDate);
+
+			if (!startCandles.length || !endCandles.length) {
+				return alert("No candles found for one of the selected dates.");
+			}
+
+			// Compute highs and lows for both periods
+			const startHigh = Math.max(...startCandles.map(c => c.y[1]));
+			const startLow = Math.min(...startCandles.map(c => c.y[2]));
+			const endHigh = Math.max(...endCandles.map(c => c.y[1]));
+			const endLow = Math.min(...endCandles.map(c => c.y[2]));
+
+			// Average time for placement
+			const avgTime = arr => new Date(arr.reduce((a, c) => a + c.x, 0) / arr.length);
+			const startTime = avgTime(startCandles);
+			const endTime = avgTime(endCandles);
+
+			// ======================================================
+			// 🔍 Determine direction dynamically
+			// ======================================================
+			// Measure which move is dominant (high diff vs low diff)
+			const upMove = endHigh - startLow;
+			const downMove = startHigh - endLow;
+
+			const isBullish = upMove > downMove; // true = Low→High, false = High→Low
+
+			const startPrice = isBullish ? startLow : startHigh;
+			const endPrice = isBullish ? endHigh : endLow;
+
+			// ======================================================
+			// === EDIT MODE ========================================
+			// ======================================================
 			const isEditMode = popup.dataset.mode === "edit";
 			const editingId = popup.dataset.editId;
 
 			if (isEditMode && editingId) {
-				// preserve old retracement visibility/fibo state
 				const oldRetr = chart._retracements?.[editingId];
 				const hidden = oldRetr?.hidden ?? false;
 				const fibos = oldRetr?.fibos ? { ...oldRetr.fibos } : undefined;
 
 				delete chart._retracements[editingId];
 
-				// ✅ FIXED retracement update call
 				chart.addRetracement({
-					startPrice: newStart.y[3],
-					endPrice: newEnd.y[3],
-					// 🧩 use actual candle timestamps instead of raw input strings
-					startDate: new Date(newStart.x).toISOString(),
-					endDate: new Date(newEnd.x).toISOString(),
+					startPrice,
+					endPrice,
+					startDate: startTime.toISOString(),
+					endDate: endTime.toISOString(),
 					retracementId: editingId,
 					hidden,
 					fibos,
 				});
 
-				// ✅ Refresh chart + notify backend
 				chart.rebuildVisibleAnnotations();
 				chart._emitRetrChanged();
 
-				// ✅ Update the existing retracement card UI with new dates
 				const card = retrList.querySelector(`.retr-card[data-retr-id="${editingId}"]`);
 				if (card) {
 					card.querySelector(".retr-dates").innerHTML = `
-      <div>Start: ${new Date(newStart.x).toLocaleDateString()} (${newStart.y[3].toFixed(2)})</div>
-      <div>End: ${new Date(newEnd.x).toLocaleDateString()} (${newEnd.y[3].toFixed(2)})</div>
-    `;
+        <div>Start: ${startTime.toLocaleDateString()} (${startPrice.toFixed(2)})</div>
+        <div>End: ${endTime.toLocaleDateString()} (${endPrice.toFixed(2)})</div>
+      `;
 					card.classList.remove("editing");
 				}
 
-				// ✅ Reset popup UI to add mode
 				popup.dataset.mode = "";
 				popup.dataset.editId = "";
 				addBtn.textContent = "Add Retracement";
 				addBtn.classList.remove("btn-warning");
-				startIn.value = endIn.value = ""; 
-				
+				startIn.value = endIn.value = "";
 				if (!startIn.value) startIn.type = "text";
-				if (!endIn.value)   endIn.type   = "text";
-				// ✅ Save to backend
+				if (!endIn.value) endIn.type = "text";
+
 				const remaining = Object.values(chart._retracements ?? {});
 				await saveChartConfig(chart.key.toUpperCase(), {
 					interval: chart.selectedInterval,
 					volumeHidden: chart._volumeHidden ?? false,
 					retracements: remaining.length ? remaining : [],
 				});
-
-				return; // stop here (don’t run add-mode logic)
+				return;
 			}
-			else {
-				// ===== NORMAL ADD FLOW =====
-				const retrId = `retr-${Date.now()}`;
-				chart.addRetracement({
-					startPrice: newStart.y[3],
-					endPrice: newEnd.y[3],
-					startDate,
-					endDate,
-					retracementId: retrId,
-				});
 
-				addRetrCard(retrId, newStart, newEnd); // creates the card
-				startIn.value = endIn.value = "";
-
-				await saveChartConfig(chart.key.toUpperCase(), {
-					interval: chart.selectedInterval,
-					volumeHidden: chart._volumeHidden ?? false,
-					retracements: Object.values(chart._retracements ?? {}),
-				});
+			// ======================================================
+			// === ADD MODE =========================================
+			// ======================================================
+			const retrId = `retr-${Date.now()}`;
+			chart.addRetracement({
+				startPrice,
+				endPrice,
+				startDate: startTime.toISOString(),
+				endDate: endTime.toISOString(),
+				retracementId: retrId,
+			});
+			// Force default fibo visibility (only Fibonacci shown)
+			const retr = chart._retracements[retrId];
+			if (retr) {
+			  retr.fibos = {
+			    "10%": false,
+			    "25%": false,
+			    "33%": false,
+			    "38%": true,
+			    "50%": false,
+			    "61.8%": true,
+			    "66%": false,
+			    "75%": false,
+			    "78.6%": true,
+			  };
+			  chart.rebuildVisibleAnnotations();
+			  chart._emitRetrChanged();
 			}
+			// Pseudo candle objects for UI
+			const startObj = { x: startTime.getTime(), y: [0, startHigh, startLow, startPrice] };
+			const endObj = { x: endTime.getTime(), y: [0, endHigh, endLow, endPrice] };
+
+			addRetrCard(retrId, startObj, endObj);
+
+			startIn.value = endIn.value = "";
+			if (!startIn.value) startIn.type = "text";
+			if (!endIn.value) endIn.type = "text";
+
+			await saveChartConfig(chart.key.toUpperCase(), {
+				interval: chart.selectedInterval,
+				volumeHidden: chart._volumeHidden ?? false,
+				retracements: Object.values(chart._retracements ?? {}),
+			});
 		});
+
 		// === Collapsible Add Retracement ===
 		const formToggleBtn = popup.querySelector(".retr-form-toggle");
 		const formContent = popup.querySelector(".retr-form-content");
-		
+
 		formToggleBtn.addEventListener("click", () => {
-		  const isOpen = formContent.classList.toggle("open");
-		  formToggleBtn.innerHTML = isOpen
-		    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>`
-		    : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+			const isOpen = formContent.classList.toggle("open");
+			formToggleBtn.innerHTML = isOpen
+				? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>`
+				: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
 		});
 
 		function addRetrCard(id, start, end) {
@@ -489,48 +533,60 @@ document.addEventListener("DOMContentLoaded", function() {
 			const retr = chart._retracements[id];
 			if (!retr) return;
 
-			// initialize fibo state if not present
-			if (!retr.fibos) retr.fibos = {
-				"10%": true,
-				"25%": true,
-				"33%": true,
-				"38%": true,
-				"50%": true,
-				"62%": true,
-				"66%": true,
-				"75%": true,
-			};
+			// 🧮 Initialize fibo levels (keep old + add true Fibonacci)
+			if (!retr.fibos)
+				  retr.fibos = {
+				    "10%": false,
+				    "25%": false,
+				    "33%": false,
+				    "38%": true,   // Fibonacci
+				    "50%": true,   // Fibonacci
+				    "61.8%": true, // Fibonacci
+				    "66%": false,
+				    "75%": false,
+				    "78.6%": true, // Fibonacci
+				  };
+				  
+			const fiboLevels = [
+				"10%",
+				"25%",
+				"33%",
+				"38%",
+				"50%",
+				"61.8%",
+				"66%",
+				"75%",
+				"78.6%",
+			];
+			const trueFibo = ["38%", "61.8%", "78.6%"];
 
-			// card layout
+			// 🧱 Card Layout
 			div.innerHTML = `
- <div class="retr-card-header d-flex justify-content-between align-items-center mb-1">
-  <div class="d-flex align-items-center">
-    <button class="icon-btn retr-toggle me-1" title="Hide/Show Retracement">
-      <svg class="icon-eye" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
-        <circle cx="12" cy="12" r="3"/>
-      </svg>
-    </button>
-    <button class="icon-btn retr-edit me-1" title="Edit">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-      </svg>
-    </button>
-    <button class="icon-btn retr-del me-1" title="Delete">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-      </svg>
-    </button>
-  </div>
-
-  <!-- collapse toggle -->
-  <button class="icon-btn retr-collapse-toggle" title="Collapse/Expand">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <polyline points="6 9 12 15 18 9"/>
-    </svg>
-  </button>
-</div>
-
+    <div class="retr-card-header d-flex justify-content-between align-items-center mb-1">
+      <div class="d-flex align-items-center">
+        <button class="icon-btn retr-toggle me-1" title="Hide/Show Retracement">
+          <svg class="icon-eye" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+        <button class="icon-btn retr-edit me-1" title="Edit">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+          </svg>
+        </button>
+        <button class="icon-btn retr-del me-1" title="Delete">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+        </button>
+      </div>
+      <button class="icon-btn retr-collapse-toggle" title="Collapse/Expand">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+    </div>
 
     <div class="text-white-50 small mb-1 retr-dates">
       <div>Start: ${new Date(start.x).toLocaleDateString()} (${start.y[3].toFixed(2)})</div>
@@ -538,37 +594,42 @@ document.addEventListener("DOMContentLoaded", function() {
     </div>
 
     <div class="retr-fibos collapsible">
-  ${["10%", "25%", "33%", "38%", "50%", "62%", "66%", "75%"]
-    .map(p => `
-      <div class="fibo-row d-flex justify-content-between align-items-center border-bottom border-dark py-1">
-        <span class="text-white-50">${p}</span>
-        <button class="fibo-toggle" data-level="${p}" title="Toggle Fibo ${p}">
-          ${
-            retr.fibos[p]
-              ? `<svg class="icon-eye" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                   <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
-                   <circle cx="12" cy="12" r="3"/>
-                 </svg>`
-              : `<svg class="icon-eye-off" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                   <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a22.51 22.51 0 0 1 5.17-6.73M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a22.64 22.64 0 0 1-4.24 5.64M1 1l22 22"/>
-                 </svg>`
-          }
-        </button>
-      </div>
-    `)
-    .join("")}
-</div>`;
+      ${fiboLevels
+					.map((p) => {
+						const isFibo = trueFibo.includes(p);
+						const label = isFibo
+							? `${p} <span class="text-warning fw-semibold">(Fibo)</span>`
+							: p;
 
-			// ==============================
-			// 🗑 DELETE handler
-			// ==============================
+						return `
+          <div class="fibo-row d-flex justify-content-between align-items-center border-bottom border-dark py-1">
+            <span class="text-white-50">${label}</span>
+            <button class="fibo-toggle" data-level="${p}" title="Toggle Fibo ${p}">
+              ${retr.fibos[p]
+								? `<svg class="icon-eye" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>`
+								: `<svg class="icon-eye-off" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20
+                               c-7 0-11-8-11-8a22.51 22.51 0 0 1 5.17-6.73M9.9 4.24
+                               A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8
+                               a22.64 22.64 0 0 1-4.24 5.64M1 1l22 22"/>
+                    </svg>`
+							}
+            </button>
+          </div>`;
+					})
+					.join("")}
+    </div>
+  `;
+
+			// 🗑 Delete handler
 			div.querySelector(".retr-del").addEventListener("click", async () => {
 				delete chart._retracements[id];
 				div.remove();
-
 				chart.rebuildVisibleAnnotations();
-				chart._emitRetrChanged(); // keep this if you want to persist immediately
-
+				chart._emitRetrChanged();
 				const remaining = Object.values(chart._retracements ?? {});
 				await saveChartConfig(chart.key.toUpperCase(), {
 					interval: chart.selectedInterval,
@@ -577,77 +638,110 @@ document.addEventListener("DOMContentLoaded", function() {
 				});
 			});
 
-			// ==============================
-			// ✏️ EDIT handler (unchanged)
-			// ==============================
+			// ✏️ Edit handler
 			div.querySelector(".retr-edit").addEventListener("click", () => {
-			  const chart = ChartKit.get(sKey);
 			  const retr = chart?._retracements?.[id];
 			  if (!retr) return;
 			
+			  // Expand the add form automatically
+			  const formContent = popup.querySelector(".retr-form-content");
+			  const formToggleBtn = popup.querySelector(".retr-form-toggle");
+			  if (!formContent.classList.contains("open")) {
+			    formContent.classList.add("open");
+			    formToggleBtn.innerHTML = `
+			      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			        <line x1="5" y1="12" x2="19" y2="12"/>
+			      </svg>`;
+			  }
+			
+			  // Focus + scroll into view
+			  formContent.scrollIntoView({ behavior: "smooth", block: "center" });
+			
+			  // Fill date fields without triggering the date picker
 			  const startInput = popup.querySelector(".retr-start");
-			  const endInput   = popup.querySelector(".retr-end");
-			  if (!startInput || !endInput) return;
-			
-			  startInput.type = "date"; // NEW
-			  endInput.type   = "date"; // NEW
+			  const endInput = popup.querySelector(".retr-end");
 			  startInput.value = retr.params.startDate.split("T")[0];
-			  endInput.value   = retr.params.endDate.split("T")[0];
+			  endInput.value = retr.params.endDate.split("T")[0];
+			  
+			  // Set the input type to 'text' to avoid opening the date picker
+			  startInput.type = endInput.type = "text"; // Keeps it as a simple text field
+			  
+			  // Prevent the input fields from being focused automatically
+			  startInput.blur(); // Removes focus from the start date input field
+			  endInput.blur(); // Removes focus from the end date input field
 			
+			  // Set edit mode
 			  popup.dataset.mode = "edit";
 			  popup.dataset.editId = id;
+			
 			  const addBtn = popup.querySelector(".add-retr-btn");
 			  addBtn.textContent = "Update Retracement";
 			  addBtn.classList.add("btn-warning");
 			
-			  retrList.querySelectorAll(".retr-card").forEach(c => c.classList.remove("editing"));
+			  retrList.querySelectorAll(".retr-card").forEach((c) => c.classList.remove("editing"));
 			  div.classList.add("editing");
+			
+			  // Show Cancel button when in edit mode
+			  const cancelBtn = popup.querySelector(".cancel-edit-btn");
+			  cancelBtn.classList.remove("d-none");
+			
 			  popup.classList.remove("d-none");
 			});
-			// 👁 Hide/Show ENTIRE retracement (fixed version)
+			
+			// Cancel Edit logic
+			const cancelBtn = popup.querySelector(".cancel-edit-btn");
+			cancelBtn.addEventListener("click", () => {
+			  // Clear the edit mode and reset values
+			  popup.dataset.mode = "";
+			  popup.dataset.editId = "";
+			
+			  // Clear the date inputs
+			  const startInput = popup.querySelector(".retr-start");
+			  const endInput = popup.querySelector(".retr-end");
+			  startInput.value = "";
+			  endInput.value = "";
+			  
+			  // Change the button back to "Add Retracement"
+			  const addBtn = popup.querySelector(".add-retr-btn");
+			  addBtn.textContent = "Add Retracement";
+			  addBtn.classList.remove("btn-warning");
+			
+			  // Hide the Cancel button
+			  cancelBtn.classList.add("d-none");
+			
+			  // Remove editing highlights
+			  const formContainer = popup.querySelector(".retr-form-container");
+			  formContainer.classList.remove("editing");
+			
+			  // Optionally, focus on the "Add Retracement" section if needed
+			  const addRetracementSection = popup.querySelector(".retr-form-container");
+			  addRetracementSection.scrollIntoView({ behavior: "smooth", block: "center" });
+			});
 
+
+			// 👁 Hide/Show entire retracement
 			const retrToggleBtn = div.querySelector(".retr-toggle");
 			retrToggleBtn.addEventListener("click", async (e) => {
-				const chart = ChartKit.get(sKey);
-				if (!chart) return;
-
 				const retr = chart._retracements[id];
-				if (!retr) return;
-
-				retr.hidden = !retr.hidden; // toggle hidden flag
-				// initialize hidden UI state
-				if (retr.hidden) {
-					retrToggleBtn.textContent = "🚫";
-					retrToggleBtn.classList.replace("btn-outline-secondary", "btn-outline-warning");
-					retrToggleBtn.title = "Show Retracement";
-					div.classList.add("is-dimmed");
-				} else {
-					retrToggleBtn.textContent = "👁";
-					retrToggleBtn.classList.replace("btn-outline-warning", "btn-outline-secondary");
-					retrToggleBtn.title = "Hide Retracement";
-					div.classList.remove("is-dimmed");
-				}
-
-				// 🔁 Refresh annotations safely
-				chart.rebuildVisibleAnnotations();
-				chart._emitRetrChanged();
-
-
-				// 🎨 Update button and card style
+				retr.hidden = !retr.hidden;
 				const btn = e.currentTarget;
 				if (retr.hidden) {
-					btn.textContent = "🚫";
-					btn.classList.replace("btn-outline-secondary", "btn-outline-warning");
-					btn.title = "Show Retracement";
-					div.classList.add("is-dimmed"); // use 'is-dimmed', NOT 'hidden'
+					btn.innerHTML = `<svg class="icon-eye-off" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8
+                 a22.51 22.51 0 0 1 5.17-6.73M9.9 4.24
+                 A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8
+                 a22.64 22.64 0 0 1-4.24 5.64M1 1l22 22"/>
+      </svg>`;
+					div.classList.add("is-dimmed");
 				} else {
-					btn.textContent = "👁";
-					btn.classList.replace("btn-outline-warning", "btn-outline-secondary");
-					btn.title = "Hide Retracement";
+					btn.innerHTML = `<svg class="icon-eye" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>`;
 					div.classList.remove("is-dimmed");
 				}
-
-				// 💾 Save to DB
+				chart.rebuildVisibleAnnotations();
+				chart._emitRetrChanged();
 				const remaining = Object.values(chart._retracements ?? {});
 				await saveChartConfig(chart.key.toUpperCase(), {
 					interval: chart.selectedInterval,
@@ -655,41 +749,33 @@ document.addEventListener("DOMContentLoaded", function() {
 					retracements: remaining.length ? remaining : [],
 				});
 			});
-			// 🔽 Collapse/Expand fibo levels
+
+			// 🔽 Collapse fibos
 			const collapseBtn = div.querySelector(".retr-collapse-toggle");
 			const fiboContainer = div.querySelector(".retr-fibos");
-			
 			collapseBtn.addEventListener("click", () => {
-			  const isOpen = fiboContainer.classList.toggle("open");
-			
-			  // rotate arrow icon
-			  collapseBtn.querySelector("svg").style.transform = isOpen
-			    ? "rotate(0deg)"
-			    : "rotate(-90deg)";
+				const isOpen = fiboContainer.classList.toggle("open");
+				collapseBtn.querySelector("svg").style.transform = isOpen ? "rotate(0deg)" : "rotate(-90deg)";
 			});
-			// ==============================
-			// 🎯 Per-Fibo Level Toggle
-			// ==============================
-			div.querySelectorAll(".fibo-toggle").forEach(btn => {
+
+			// 🎯 Toggle per-fibo level
+			div.querySelectorAll(".fibo-toggle").forEach((btn) => {
 				btn.addEventListener("click", async (e) => {
 					const level = e.currentTarget.dataset.level;
-					const retr = chart._retracements[id];
-					if (!retr) return;
-
 					retr.fibos[level] = !retr.fibos[level];
 					e.currentTarget.innerHTML = retr.fibos[level]
 						? `<svg class="icon-eye" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					       <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
-					       <circle cx="12" cy="12" r="3"/>
-					     </svg>`
+             <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
+             <circle cx="12" cy="12" r="3"/>
+           </svg>`
 						: `<svg class="icon-eye-off" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					       <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a22.51 22.51 0 0 1 5.17-6.73M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a22.64 22.64 0 0 1-4.24 5.64M1 1l22 22"/>
-					     </svg>`;
-
+             <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20
+                      c-7 0-11-8-11-8a22.51 22.51 0 0 1 5.17-6.73M9.9 4.24
+                      A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8
+                      a22.64 22.64 0 0 1-4.24 5.64M1 1l22 22"/>
+           </svg>`;
 					chart.rebuildVisibleAnnotations();
 					chart._emitRetrChanged();
-
-
 					const remaining = Object.values(chart._retracements ?? {});
 					await saveChartConfig(chart.key.toUpperCase(), {
 						interval: chart.selectedInterval,
@@ -698,12 +784,13 @@ document.addEventListener("DOMContentLoaded", function() {
 					});
 				});
 			});
+
 			retrList.prepend(div);
 		}
 
 
 
-		window.addRetrCard = addRetrCard;
+		inst.addRetrCard = addRetrCard;
 
 		// =============================================================
 		// === Remove Chart ============================================
@@ -727,93 +814,116 @@ document.addEventListener("DOMContentLoaded", function() {
 			await saveChartConfig(symbol, interval, false, []);
 		return inst;
 	}
+async function loadUserCharts() {
+  try {
+    const res = await fetch("/api/user/chart-settings");
+    const { charts } = await res.json();
+    if (!charts?.length) return;
 
-	async function loadUserCharts() {
-		try {
-			const res = await fetch("/api/user/chart-settings");
-			const { charts } = await res.json();
-			if (!charts?.length) return;
+    for (const savedChart of charts) {
+      const symbol = savedChart.symbol;
+      const interval = savedChart.interval || "4h";
+      const sKey = symbol.toLowerCase();
 
-			for (const chart of charts) {
-				const symbol = chart.symbol;
-				const interval = chart.interval || "4h";
-				const inst = await createChartCard(symbol, interval, true); // restored chart
+      const inst = await createChartCard(symbol, charts.length, interval, true);
 
-				inst.onReady = async () => {
-					const sKey = symbol.toLowerCase();
+      inst.onReady = async () => {
+        // === Restore Volume Hidden State ===
+        if (savedChart.volumeHidden) {
+          const btn = document.getElementById(`toggle-volume-${sKey}`);
+          if (btn) btn.textContent = "Show Volume";
+          inst.setVolumeHidden(true);
+        }
 
-					// === Restore Volume State ===
-					if (chart.volumeHidden) {
-						const btn = document.getElementById(`toggle-volume-${sKey}`);
-						if (btn) btn.textContent = "Show Volume";
-						inst.setVolumeHidden(true);
-					}
+        // === Restore Retracements ===
+        if (savedChart.retracements) {
+          let retrList;
+          try {
+            retrList = JSON.parse(savedChart.retracements);
+          } catch {
+            retrList = [];
+          }
 
-					// === Restore Retracements ===
-					if (chart.retracements) {
-						let retrList;
-						try {
-							retrList = JSON.parse(chart.retracements);
-						} catch {
-							retrList = [];
-						}
+          const wrapper = document.querySelector(`[data-symbol="${symbol}"]`);
+          const popup = wrapper?.querySelector(`#retr-popup-${sKey}`);
+          const retrContainer = popup?.querySelector(".retr-list");
 
-						const wrapper = document.querySelector(`[data-symbol="${symbol}"]`);
-						const popup = wrapper?.querySelector(`#retr-popup-${sKey}`);
-						const retrContainer = popup?.querySelector(".retr-list");
-						const candleSeries = inst.seriesDefs.find((s) => s.type === "candlestick");
+          retrList.forEach((r) => {
+            const retrData = r.params ? r.params : r;
+            const startPrice = parseFloat(retrData.startPrice);
+            const endPrice = parseFloat(retrData.endPrice);
+            const startDate = retrData.startDate;
+            const endDate = retrData.endDate;
 
-						retrList.forEach((r) => {
-							// Support both new and old DB formats
-							const retrData = r.params ? r.params : r;
+            if (!startDate || !endDate || isNaN(startPrice) || isNaN(endPrice)) {
+              console.warn(`[${symbol}] invalid retr skipped`, retrData);
+              return;
+            }
 
-							const startPrice = parseFloat(retrData.startPrice);
-							const endPrice = parseFloat(retrData.endPrice);
-							const startDate = retrData.startDate;
-							const endDate = retrData.endDate;
+            const retrId = r.retracementId || `retr-${Date.now()}-${Math.floor(Math.random() * 9999)}`;
+            const defaultFibos = {
+			  "10%": false,
+			  "25%": false,
+			  "33%": false,
+			  "38%": true,
+			  "50%": true,
+			  "61.8%": true,
+			  "66%": false,
+			  "75%": false,
+			  "78.6%": true,
+			};
+			
+			inst.addRetracement({
+			  startPrice,
+			  endPrice,
+			  startDate,
+			  endDate,
+			  retracementId: retrId,
+			  hidden: !!r.hidden,
+			  fibos: r.fibos || defaultFibos,
+			});
 
-							if (!startDate || !endDate || isNaN(startPrice) || isNaN(endPrice)) {
-								console.warn("Invalid retracement skipped:", retrData);
-								return;
-							}
+           if (typeof inst.addRetrCard === "function") {
+			  const start = { x: new Date(startDate).getTime(), y: [0, 0, 0, startPrice] };
+			  const end   = { x: new Date(endDate).getTime(),   y: [0, 0, 0, endPrice] };
+			  inst.addRetrCard(retrId, start, end);
+			
+			  // If you want to sync hidden UI state:
+			  const wrapper   = document.querySelector(`[data-symbol="${symbol}"]`);
+			  const retrCard  = wrapper?.querySelector(`.retr-card[data-retr-id="${retrId}"]`);
+			  if (retrCard && r.hidden) {
+			    const toggleBtn = retrCard.querySelector(".retr-toggle");
+			    retrCard.classList.add("is-dimmed");
+                toggleBtn.innerHTML = `
+                  <svg class="icon-eye-off" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2">
+                    <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20
+                             c-7 0-11-8-11-8a22.51 22.51 0 0 1 5.17-6.73M9.9 4.24
+                             A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8
+                             a22.64 22.64 0 0 1-4.24 5.64M1 1l22 22"/>
+                  </svg>`;
+                toggleBtn.title = "Show Retracement";
+              }
+            }
+          });
+        }
+      };
 
-							const retracementId = r.retracementId || `retr-${Date.now()}-${Math.floor(Math.random() * 9999)}`;
+      // 🧩 Register retracement change listener
+      inst.onRetracementsChanged = async (chartInst) => {
+        const retracements = Object.values(chartInst._retracements ?? {});
+        await saveChartConfig(chartInst.key.toUpperCase(), {
+          interval: chartInst.selectedInterval,
+          volumeHidden: chartInst._volumeHidden ?? false,
+          retracements: retracements.length ? retracements : [],
+        });
+      };
+    }
+  } catch (err) {
+    console.error("Failed to load user charts:", err);
+  }
+}
 
-							// 1️ Draw retracement on chart
-							inst.addRetracement({
-								startPrice,
-								endPrice,
-								startDate,
-								endDate,
-								retracementId,
-								hidden: !!r.hidden,
-								fibos: r.fibos || undefined, // restore fibo visibility states
-							});
-
-							// Add retracement card in UI
-							if (typeof addRetrCard === "function") {
-								const start = { x: new Date(startDate).getTime(), y: [0, 0, 0, startPrice] };
-								const end = { x: new Date(endDate).getTime(), y: [0, 0, 0, endPrice] };
-								addRetrCard(retracementId, start, end);
-							}
-						});
-					}
-				};
-
-				// 🔔 Persist on any retracement change
-				inst.onRetracementsChanged = async (chartInst) => {
-					const retracements = Object.values(chartInst._retracements ?? {});
-					await saveChartConfig(chartInst.key.toUpperCase(), {
-						interval: chartInst.selectedInterval,
-						volumeHidden: chartInst._volumeHidden ?? false,
-						retracements: retracements.length ? retracements : [],
-					});
-				};
-			}
-		} catch (err) {
-			console.error("Failed to load user charts:", err);
-		}
-	}
 
 	// ---------------------------------------------------------------
 	// === Dropdown handler ==========================================
@@ -856,16 +966,22 @@ document.addEventListener("DOMContentLoaded", function() {
 	// ---------------------------------------------------------------
 	// === Enable drag-and-drop chart sorting ========================
 	// ---------------------------------------------------------------
+	
 	const sortable = new Sortable(chartContainer, {
-		animation: 150,
-		handle: ".card-header", // user can grab header area
-		ghostClass: "chart-ghost",
-		chosenClass: "chart-chosen",
-		dragClass: "chart-dragging",
-		onEnd: () => {
-			// optional: update internal order or save to localStorage
-			console.log("Chart order changed!");
-		},
+	  animation: 150,
+	  handle: ".card-header",
+	  onEnd: async () => {
+	    const newOrder = Array.from(chartContainer.children).map((el, index) => ({
+	      symbol: el.dataset.symbol,
+	      orderIndex: index
+	    }));
+	
+	    await fetch("/api/user/chart-settings/order", {
+	      method: "POST",
+	      headers: { "Content-Type": "application/json" },
+	      body: JSON.stringify(newOrder)
+	    });
+	  },
 	});
 
 });
