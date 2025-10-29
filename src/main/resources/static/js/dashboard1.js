@@ -454,6 +454,10 @@ document.addEventListener("DOMContentLoaded", function() {
 				popup.dataset.editId = "";
 				addBtn.textContent = "Add Retracement";
 				addBtn.classList.remove("btn-warning");
+				
+			    const cancelBtn = popup.querySelector(".cancel-edit-btn");
+			    cancelBtn.classList.add("d-none");
+
 				startIn.value = endIn.value = "";
 				if (!startIn.value) startIn.type = "text";
 				if (!endIn.value) endIn.type = "text";
