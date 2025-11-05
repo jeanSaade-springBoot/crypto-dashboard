@@ -53,6 +53,7 @@ public class UserChartSettingsService {
                     existing.setInterval(dto.getInterval());
                     existing.setVolumeHidden(dto.isVolumeHidden());
                     existing.setRetracements(dto.getRetracements());
+                    existing.setTrendlines(dto.getTrendlines());
                     existing.setUpdatedAt(LocalDateTime.now());
                     return userChartSettingsRepository.save(existing);
                 })
@@ -64,6 +65,7 @@ public class UserChartSettingsService {
                             .interval(dto.getInterval())
                             .volumeHidden(dto.isVolumeHidden())
                             .retracements(dto.getRetracements())
+                            .trendlines(dto.getTrendlines())
                             .updatedAt(LocalDateTime.now())
                             .build();
                     return userChartSettingsRepository.save(newSettings);

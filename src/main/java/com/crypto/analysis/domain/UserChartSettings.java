@@ -45,6 +45,10 @@ public class UserChartSettings {
     @Column(columnDefinition = "jsonb")
     @Builder.Default
     private String retracements = "[]"; // stored as JSON text
+    
+    @Column(columnDefinition = "jsonb")
+    @Builder.Default
+    private String trendlines = "[]"; // stored as JSON text
 
     @Column(name = "order_index")
     @Builder.Default

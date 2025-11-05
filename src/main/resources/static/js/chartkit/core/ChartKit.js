@@ -50,6 +50,13 @@
 				try { this.onRetracementsChanged(this); } catch (e) { console.warn(e); }
 			}
 		}
+		onTrendlinesChanged = null;   // callback set by the page
+
+		_emitTrendChanged() {
+		  if (typeof this.onTrendlinesChanged === "function") {
+		    try { this.onTrendlinesChanged(this); } catch (e) { console.warn(e); }
+		  }
+		}
 		restoreUserSettings() {
 			const all = JSON.parse(localStorage.getItem("chartSettings") || "{}");
 			const settings = all[this.key];
@@ -740,6 +747,78 @@
 			this._emitRetrChanged();   // <--- notify
 
 		}
+		addTrendline(params) {
+  if (!this._trendlines) this._trendlines = {};
+
+  const { startDate, endDate, y1, y2, hidden = false, trendlineId, pointType } = params;
+  const id = trendlineId || `trend-${Date.now()}`;
+ // ✅ If a trendline with this ID already exists, update its params instead of duplicating
+  if (this._trendlines[id]) {
+    delete this._trendlines[id]; // remove old visual first
+  }
+  const xStart = new Date(startDate).getTime();
+  const xEnd = new Date(endDate).getTime();
+
+  // --- Base (solid) part of trendline ---
+  const baseLine = {
+    type: "diagonal",
+    x1: xStart,
+    y1,
+    x2: xEnd,
+    y2,
+    borderColor: "#ff0000",
+    borderWidth: 2,
+    strokeDashArray: 0,
+    label: { text: "" },
+  };
+
+  // --- Extension (dashed projection to today) ---
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const daysBetween = Math.max(1e-9, (xEnd - xStart) / msPerDay);
+  const slope = (y2 - y1) / daysBetween;
+
+  const daysToNow = (Date.now() - xEnd) / msPerDay;
+  const yNowProj = y2 + slope * daysToNow;
+
+  const extLine = {
+    type: "diagonal",
+    x1: xEnd,
+    y1: y2,
+    x2: Date.now(),
+    y2: yNowProj,
+    borderColor: "#ff0000",
+    borderWidth: 2,
+    strokeDashArray: 6, // dashed
+    label: { text: "" },
+  };
+
+  // --- Store it ---
+  this._trendlines[id] = {
+  params: { startDate, endDate, y1, y2, pointType },
+  hidden,
+  annotations: { yaxis: [baseLine, extLine] },
+};
+
+  this.rebuildVisibleAnnotations();
+  this._emitTrendChanged();
+  return id;  // ✅ add this line
+
+}
+
+
+		removeTrendline(id) {
+		  // safety check
+		  if (!this._trendlines || !this._trendlines[id]) return;
+		
+		  // remove from memory
+		  delete this._trendlines[id];
+		
+		  // visually refresh chart annotations
+		  this.rebuildVisibleAnnotations?.();
+		
+		  // notify listeners
+		  this._emitTrendChanged?.();
+		}
 		// === Retracement helpers (inside class) ==========================
 		isStartEndLine(y) {
 			const t = y?.label?.text || "";
@@ -747,28 +826,60 @@
 		}
 
 		rebuildVisibleAnnotations() {
-			if (!this.chart) return;
-
-			const allYaxis = [];
-			const retrs = Object.values(this._retracements || {});
-
-			for (const r of retrs) {
-				// ⛔ If retracement is hidden, skip *everything*
-				if (r.hidden) continue;
-			
-				const fibosToKeep = Object.keys(r.fibos || {}).filter(f => r.fibos[f] === true);
-			
-				const lines = (r.annotations?.yaxis || []).filter(y => {
-					const label = y.label?.text || "";
-					// Always include Start/End only if retracement is visible
-					if (this.isStartEndLine(y)) return true;
-					return fibosToKeep.some(level => label.includes(level));
-				});
-			
-				allYaxis.push(...lines);
-			}
-			this.chart.updateOptions({ annotations: { yaxis: allYaxis } }, false, false);
+		  if (!this.chart) return;
+		
+		  const allYaxis = [];
+		
+		  // === 🔹 1. Handle Retracements (same logic as before) ==========
+		  const retrs = Object.values(this._retracements || {});
+		
+		  for (const r of retrs) {
+		    // ⛔ Skip hidden retracements
+		    if (r.hidden) continue;
+		
+		    const fibosToKeep = Object.keys(r.fibos || {}).filter(f => r.fibos[f] === true);
+		
+		    const lines = (r.annotations?.yaxis || []).filter(y => {
+		      const label = y.label?.text || "";
+		      // Always include Start/End if retracement is visible
+		      if (this.isStartEndLine(y)) return true;
+		      return fibosToKeep.some(level => label.includes(level));
+		    });
+		
+		    allYaxis.push(...lines);
+		  }
+		
+		  // === 🔸 2. Handle Trendlines ====================================
+		  const trendlines = Object.values(this._trendlines || {});
+		
+		  for (const t of trendlines) {
+		    // skip if hidden
+		    if (t.hidden) continue;
+		
+		    const annos = t.annotations?.yaxis || [];
+		    for (const a of annos) {
+		      allYaxis.push({
+		        ...a,
+		        type: "diagonal", // ensure proper type
+		        borderColor: a.borderColor || "#00E396",
+		        borderWidth: a.borderWidth ?? 2,
+		        label: a.label || { text: "Trendline" },
+		      });
+		    }
+		  }
+		
+		  // === 🧩 3. Apply Combined Annotations ===========================
+		  this.chart.updateOptions(
+		    {
+		      annotations: {
+		        yaxis: allYaxis,
+		      },
+		    },
+		    false, // don't redraw entire chart
+		    false  // don't animate
+		  );
 		}
+
 		toggleRetracement(retracementId) {
 			if (!this._retracements || !this._retracements[retracementId]) return;
 			this._retracements[retracementId].hidden = !this._retracements[retracementId].hidden;
@@ -791,7 +902,21 @@
 			this.rebuildVisibleAnnotations();
 			this._emitRetrChanged();
 		}
-
+		getTrendlinesArray() {
+		  if (!this._trendlines) return [];
+		  return Object.entries(this._trendlines).map(([id, t]) => ({
+		    trendlineId: id,
+		    ...t.params,
+		    hidden: t.hidden ?? false, // ✅ ensure current hidden state is serialized
+		  }));
+		}
+		getRetracementsArray() {
+		  return Object.values(this._retracements || {}).map(r => ({
+		    params: r.params,
+		    hidden: r.hidden ?? false,
+		    fibos: r.fibos ?? {},
+		  }));
+		}
 		saveUserSettings() {
 			const settings = {
 				key: this.key,

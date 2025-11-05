@@ -41,3 +41,8 @@ INSERT INTO `data`.`membership_duration` (`id`, `value`,`description`) VALUES ('
 
 INSERT INTO `data`.`user_membership` (`id`, `created_on`, `is_active`, `md_id`, `user_id`)
  VALUES ('1', now(), true, '1', '1');
+ 
+ -- new 03-11-2025
+
+ALTER TABLE user_chart_settings
+  ADD COLUMN trendlines   JSON NULL;
