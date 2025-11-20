@@ -285,7 +285,7 @@ body {
   transition: all 0.3s ease;
 }
 .retr-form-content.open {
-  max-height: 300px;
+  max-height: fit-content;
   opacity: 1;
   transform: translateY(0);
 }

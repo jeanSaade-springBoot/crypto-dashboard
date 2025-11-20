@@ -242,6 +242,32 @@ document.addEventListener("DOMContentLoaded", function() {
 			        </svg>
 			        <span class="ms-1">Add Trendline</span>
 			      </button>
+			      <!-- Add Channel Section -->
+					<div class="input-wrapper mt-3 border-top pt-2">
+					  <label class="text-white fw-semibold">Add Channel</label>
+					  <div class="input-wrapper mt-2">
+					    <label class="text-white-50 small">Start Date</label>
+					    <input type="date" class="form-control form-control-sm chan-start">
+					  </div>
+					  <div class="input-wrapper mt-2">
+					    <label class="text-white-50 small d-block mb-1">Point Type</label>
+					    <div class="form-check form-check-inline">
+					      <input class="form-check-input chan-point-type" type="radio" name="chanPointType-${sKey}" id="chan-high-${sKey}" value="high" checked>
+					      <label class="form-check-label text-white-50 small" for="chan-high-${sKey}">High</label>
+					    </div>
+					    <div class="form-check form-check-inline">
+					      <input class="form-check-input chan-point-type" type="radio" name="chanPointType-${sKey}" id="chan-low-${sKey}" value="low">
+					      <label class="form-check-label text-white-50 small" for="chan-low-${sKey}">Low</label>
+					    </div>
+					  </div>
+					  <button class="btn btn-info btn-sm w-100 fw-semibold mt-2 add-channel-btn">
+					    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+					      <line x1="4" y1="12" x2="20" y2="12"/>
+					      <line x1="12" y1="4" x2="12" y2="20"/>
+					    </svg>
+					    <span class="ms-1">Add Channel</span>
+					  </button>
+					</div>
 			      <button class="btn btn-outline-secondary btn-sm w-100 fw-semibold mt-2 cancel-trend-edit-btn d-none">
 					  Cancel Edit
 				  </button>
@@ -307,6 +333,8 @@ document.addEventListener("DOMContentLoaded", function() {
 	            </div>
 
 	            <div id="${ids.main}" style="height:350px;"></div>
+				<div id="rsi-${sKey}" style="height:160px; margin-top:5px;"></div>
+
 	          </div>
 	        </div>
 	      </div>
@@ -347,7 +375,43 @@ document.addEventListener("DOMContentLoaded", function() {
 				},
 			],
 		});
-
+		// ========================================
+		//   Create RSI CHART
+		// ========================================
+/*		const rsiChart = ChartKit.create({
+		    key: sKey + "-rsi",
+		    containerId: `rsi-${sKey}`,
+		    spinnerId: ids.spinner,
+		    totalCharts: totalCharts,
+		    fixedHeight: 100,     // <<< THIS MAKES THE HEIGHT ALWAYS 100px
+		    series: [
+		          {
+		            name: `${symbol} RSI`,
+		            type: "line",
+		            color: "#00E396",
+		             pureLine: true,       // <--- VERY IMPORTANT
+		            dataSource: new RSIDataSource(src),
+		        }
+		    ],
+		});*/
+		
+/*const debugChart = ChartKit.create({
+    key: "rsi-debug",
+    containerId:  `rsi-${sKey}`,
+    debugStandard: true,	    
+    series: [
+		          {
+		            type: "line",}]
+});
+*/
+const rsiChart =  ChartKit.create({
+    key: "rsi-debug",
+    containerId:  `rsi-${sKey}`,
+    debugStandard: true,
+    series: [{ type: "line",
+          dataSource: new RSIDataSource(src),
+ }]
+});
 		// =============================================================
 		// === Timeframe Buttons =======================================
 		// =============================================================
@@ -892,13 +956,18 @@ document.addEventListener("DOMContentLoaded", function() {
 		const trendList = trendPopup.querySelector(".trend-list");
 		const pointType = wrapper.querySelector(`input[name="trendPointType-${sKey}"]:checked`)?.value || "high";
         const cancelTrendEditBtn = trendPopup.querySelector(".cancel-trend-edit-btn");
-
+		
+		const addChannelBtn = trendPopup.querySelector(".add-channel-btn");
+		const chanStart = trendPopup.querySelector(".chan-start");
 		// Collapsible for Trendline
 		initCollapsiblePanel(trendPopup, "trend");
 
 
 		enhanceDateInput(trendStart, "Choose start date");
 		enhanceDateInput(trendEnd, "Choose end date");
+		
+	    // add this line too:
+		enhanceDateInput(chanStart,  "Choose start date");
 
 		trendBtn.addEventListener("click", () => trendPopup.classList.toggle("d-none"));
 
@@ -960,25 +1029,29 @@ document.addEventListener("DOMContentLoaded", function() {
 			// Check if we're editing an existing trendline
 			  const editId = trendPopup.dataset.editId || null;
 
-			  const trendId = chart.addTrendline({
-			    startDate: d1,
-			    endDate: d2,
-			    y1: startPrice,
-			    y2: endPrice,
-			    yNow,
-			    slope: m,
-			    pointType,
-			     trendlineId: editId || undefined,
-			  });
-			  addTrendCard(trendId, {
-			    startDate: d1,
-			    endDate: d2,
-			    y1: startPrice,
-			    y2: endPrice,
-			    hidden: false,
-			    pointType
-			  });
-			
+			const trendId = chart.addTrendline({
+				  startDate: d1,
+				  endDate: d2,
+				  y1: startPrice,
+				  y2: endPrice,
+				  yNow,
+				  slope: m,
+				  pointType,
+				  trendlineId: editId || undefined,
+				});
+				
+				addTrendCard(trendId, {
+				  startDate: d1,
+				  endDate: d2,
+				  y1: startPrice,
+				  y2: endPrice,
+				  hidden: false,
+				  pointType
+				});
+				
+				// 👇 This is the "current" trendline for channels
+				trendPopup.dataset.baseTrendId = trendId;
+				
 			 // trendPopup.classList.add("d-none");
 				// --- Reset form fields ---
 				trendStart.value = "";
@@ -1001,6 +1074,127 @@ document.addEventListener("DOMContentLoaded", function() {
 			  delete trendPopup.dataset.editTrendId;
 
 			});
+			addChannelBtn.addEventListener("click", async () => {
+			  const chart = ChartKit.get(sKey);
+			  if (!chart) return;
+			
+			  const startDate = chanStart.value;
+			  if (!startDate) return alert("Please select a channel start date.");
+			
+			  // 1️⃣ Determine which trendline to use
+			  let baseTrendId = trendPopup.dataset.baseTrendId || trendPopup.dataset.editId || null;
+			  const hasTrendlines = chart._trendlines && Object.keys(chart._trendlines).length > 0;
+			
+			  // 2️⃣ If no trendline exists yet, auto-create one from the Trend form
+			  if (!baseTrendId) {
+			    if (!hasTrendlines) {
+			      const tStart = trendStart.value;
+			      const tEnd = trendEnd.value;
+			      if (!tStart || !tEnd) {
+			        return alert("No trendline exists. Please fill Trendline Start/End dates first.");
+			      }
+			
+			      // Reuse the same logic as in Add Trendline
+			      const pointType = wrapper.querySelector(`input[name="trendPointType-${sKey}"]:checked`)?.value || "high";
+			
+			      const candleSeries = chart.seriesDefs.find(s => s.type === "candlestick");
+			      if (!candleSeries?.data.length) return alert("No data to build a trendline.");
+			
+			      const candles = candleSeries.data;
+			      const toDateStr = ts => new Date(ts).toISOString().split("T")[0];
+			      const getCandlesForDate = d => candles.filter(c => toDateStr(c.x) === d);
+			
+			      const startCandles = getCandlesForDate(tStart);
+			      const endCandles = getCandlesForDate(tEnd);
+			      if (!startCandles.length || !endCandles.length) return alert("No candles for trendline dates.");
+			
+			      const highOf = arr => Math.max(...arr.map(c => c.y[1]));
+			      const lowOf  = arr => Math.min(...arr.map(c => c.y[2]));
+			
+			      const startHigh = highOf(startCandles);
+			      const startLow  = lowOf(startCandles);
+			      const endHigh = highOf(endCandles);
+			      const endLow  = lowOf(endCandles);
+			
+			      const useHigh = pointType === "high";
+			      const startPrice = useHigh ? startHigh : startLow;
+			      const endPrice   = useHigh ? endHigh   : endLow;
+			
+			      const findCandleByPrice = (arr, price, useHigh) =>
+			        arr.find(c => useHigh ? c.y[1] === price : c.y[2] === price) || arr[0];
+			
+			      const startCandle = findCandleByPrice(startCandles, startPrice, useHigh);
+			      const endCandle   = findCandleByPrice(endCandles, endPrice, useHigh);
+			
+			      const d1 = new Date(startCandle.x);
+			      const d2 = new Date(endCandle.x);
+			
+			      const msPerDay = 1000 * 60 * 60 * 24;
+			      const daysBetween = Math.max(1e-9, (d2 - d1) / msPerDay);
+			      const m = (endPrice - startPrice) / daysBetween;
+			
+			      const now = new Date();
+			      const daysToNow = (now - d2) / msPerDay;
+			      const yNow = endPrice + m * daysToNow;
+			
+			      baseTrendId = chart.addTrendline({
+			        startDate: d1,
+			        endDate: d2,
+			        y1: startPrice,
+			        y2: endPrice,
+			        yNow,
+			        slope: m,
+			        pointType,
+			      });
+			
+			      addTrendCard(baseTrendId, {
+			        startDate: d1,
+			        endDate: d2,
+			        y1: startPrice,
+			        y2: endPrice,
+			        hidden: false,
+			        pointType
+			      });
+			
+			      trendPopup.dataset.baseTrendId = baseTrendId;
+			    } else {
+			      // Fallback: use last created trendline
+			      baseTrendId = Object.keys(chart._trendlines).slice(-1)[0];
+			      trendPopup.dataset.baseTrendId = baseTrendId;
+			    }
+			  }
+			
+			  const pointType = wrapper.querySelector(`input[name="chanPointType-${sKey}"]:checked`)?.value || "high";
+			
+			  const chanId = chart.addChannelToTrendline(baseTrendId, {
+			    startDate,
+			    pointType,
+			  });
+			
+			  if (!chanId) return alert("Channel creation failed.");
+			
+			  chanStart.value = "";
+			
+			  // Re-render trend card to show new channel
+			  const trendCard = trendList.querySelector(`.trend-card[data-trend-id="${baseTrendId}"]`);
+			  if (trendCard) {
+			    const t = chart._trendlines[baseTrendId];
+			    addTrendCard(baseTrendId, {
+			      startDate: t.params.startDate,
+			      endDate: t.params.endDate,
+			      y1: t.params.y1,
+			      y2: t.params.y2,
+			      hidden: t.hidden ?? false,
+			      pointType: t.params.pointType,
+			    });
+			  }
+			
+			  await saveChartConfig(chart.key.toUpperCase(), {
+			    trendlines: chart.getTrendlinesArray(),
+			  });
+			});
+
+
 			cancelTrendEditBtn.addEventListener("click", () => {
 				  // Reset edit mode
 				  delete trendPopup.dataset.editId;
@@ -1070,8 +1264,45 @@ document.addEventListener("DOMContentLoaded", function() {
 		      <div>Start: ${Number(y1).toFixed(2)}</div>
 		      <div>End: ${Number(y2).toFixed(2)}</div>
 		    </div>
+		     <div class="channel-list mt-2"></div>
+
 		  `;
-		
+		// 🔁 Render existing channels for this trendline
+const tObj = chart._trendlines?.[id];
+const channelListEl = div.querySelector(".channel-list");
+channelListEl.innerHTML = "";
+
+if (tObj?.channels?.length) {
+  tObj.channels.forEach(ch => {
+    const row = document.createElement("div");
+    row.className = "d-flex justify-content-between align-items-center text-white-50 small channel-row py-1";
+    row.dataset.channelId = ch.channelId;
+
+    const priceLabel = ch.refPrice != null ? Number(ch.refPrice).toFixed(2) : "-";
+
+    row.innerHTML = `
+      <span>Channel (${ch.pointType || "-"}) @ ${priceLabel}</span>
+      <button class="icon-btn chan-del" title="Delete Channel">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4
+                   a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+      </button>
+    `;
+
+    // 🗑 Delete channel
+    row.querySelector(".chan-del").addEventListener("click", async () => {
+      chart.removeChannel(id, ch.channelId);
+      row.remove();
+      await saveChartConfig(chart.key.toUpperCase(), {
+        trendlines: chart.getTrendlinesArray(),
+      });
+    });
+
+    channelListEl.appendChild(row);
+  });
+}
 		  // 🧠 Only reattach event listeners if this was newly created
 		  if (!isUpdate) {
 		    attachTrendCardHandlers(div, id, chart); // helper function defined below
@@ -1162,7 +1393,9 @@ document.addEventListener("DOMContentLoaded", function() {
     trendStart.value = new Date(chart._trendlines[id].params.startDate).toISOString().split("T")[0];
     trendEnd.value = new Date(chart._trendlines[id].params.endDate).toISOString().split("T")[0];
     popup.dataset.editId = id;
-
+	// Channel operations should target this trendline
+	trendPopup.dataset.baseTrendId = id;
+	
     addBtn.textContent = "Update Trendline";
     addBtn.classList.add("btn-warning");
     popup.classList.remove("d-none");
@@ -1315,7 +1548,12 @@ document.addEventListener("DOMContentLoaded", function() {
 					      hidden: params.hidden ?? false,
 					      trendlineId: id,
 					    });
-					
+					    
+					if (t.channels && Array.isArray(t.channels)) {
+					  t.channels.forEach(ch => {
+					    inst.addChannelToTrendline(id, ch);
+					  });
+					}
 					    // 2️⃣ Add to list UI (if method available)
 					    if (typeof inst.addTrendCard === "function") {
 					      inst.addTrendCard(id, {

@@ -9,49 +9,30 @@
       this.interval = interval;
       this.pageSize = pageSize;
       this.cursorMs = null;
-      this._base = "https://api.binance.com/api/v3/klines";
     }
 
-    setInterval(interval) {
-      this.interval = interval;
-      this.cursorMs = null;
-    }
+  
+  setInterval(tf) {
+    this.interval = tf;
+    this.cursorMs = null;
+  }
 
-    async fetchOlder(limit = this.pageSize) {
-      const endTimeMs = Number.isFinite(this.cursorMs)
-        ? this.cursorMs - 1
-        : Date.now();
+  async fetchOlder() {
+    const url = `/api/chart/ohlc?symbol=${this.symbol}&interval=${this.interval}&source=binance&includeIndicators=true`;
 
-      const url = new URL(this._base);
-      url.searchParams.set("symbol", this.symbol);
-      url.searchParams.set("interval", this.interval);
-      url.searchParams.set("limit", String(Math.max(1, Math.min(1000, limit))));
-      url.searchParams.set("endTime", String(endTimeMs));
+    const res = await fetch(url);
+    const arr = await res.json();
 
-      let res;
-      try {
-        res = await fetch(url.toString(), { mode: "cors" });
-      } catch (err) {
-        throw new Error(`Binance fetch error: ${err?.message || err}`);
-      }
+    const points = arr.map(k => ({
+      x: k.timestamp,
+      y: [k.open, k.high, k.low, k.close],
+      volume: k.volume,
+      rsi: k.rsi // <--- add this
+    }));
 
-      if (!res.ok) {
-        if (res.status === 429) throw new Error("Binance rate limit (429).");
-        throw new Error(`Binance ${res.status} ${res.statusText}`);
-      }
-
-      const arr = await res.json();
-      if (!Array.isArray(arr) || arr.length === 0) return { points: [] };
-
-      const points = arr.map((k) => ({
-        x: k[0], 
-        y: [+k[1], +k[2], +k[3], +k[4]],
-        volume: +k[7],
-      }));
-
-      this.cursorMs = arr[0][0];
-      return { points, cursorMs: this.cursorMs };
-    }
+    this.cursorMs = points.length ? points[0].x : null;
+    return { points };
+  }
   }
 
   global.BinanceOHLCSource = BinanceOHLCSource;

@@ -16,20 +16,20 @@
 	}
 	// === Retracement Math Helper ===
 	function calculateRetracements(startPrice, endPrice) {
-	const diff = endPrice - startPrice;
-	const retracements = {
-		"10%": endPrice - diff * 0.10,
-		"25%": endPrice - diff * 0.25,
-		"33%": endPrice - diff * 0.33,
-		"38%": endPrice - diff * 0.382,   // Fibonacci
-		"50%": endPrice - diff * 0.5,     // Fibonacci
-		"61.8%": endPrice - diff * 0.618, // Fibonacci (new)
-		"66%": endPrice - diff * 0.666,
-		"75%": endPrice - diff * 0.75,
-		"78.6%": endPrice - diff * 0.786, // Fibonacci (new)
-	};
-	return retracements;
-}
+		const diff = endPrice - startPrice;
+		const retracements = {
+			"10%": endPrice - diff * 0.10,
+			"25%": endPrice - diff * 0.25,
+			"33%": endPrice - diff * 0.33,
+			"38%": endPrice - diff * 0.382,   // Fibonacci
+			"50%": endPrice - diff * 0.5,     // Fibonacci
+			"61.8%": endPrice - diff * 0.618, // Fibonacci (new)
+			"66%": endPrice - diff * 0.666,
+			"75%": endPrice - diff * 0.75,
+			"78.6%": endPrice - diff * 0.786, // Fibonacci (new)
+		};
+		return retracements;
+	}
 	class ChartKit {
 		static registry = new Map();
 
@@ -53,9 +53,9 @@
 		onTrendlinesChanged = null;   // callback set by the page
 
 		_emitTrendChanged() {
-		  if (typeof this.onTrendlinesChanged === "function") {
-		    try { this.onTrendlinesChanged(this); } catch (e) { console.warn(e); }
-		  }
+			if (typeof this.onTrendlinesChanged === "function") {
+				try { this.onTrendlinesChanged(this); } catch (e) { console.warn(e); }
+			}
 		}
 		restoreUserSettings() {
 			const all = JSON.parse(localStorage.getItem("chartSettings") || "{}");
@@ -78,36 +78,39 @@
 		}
 
 		static resizeAll() {
-			const total = ChartKit.registry.size;
-			let dynamicHeight = 300; // fallback default;
-
-			// 🧩 Different rules for count
-			if (total === 1) {
-				dynamicHeight = window.innerHeight - 269; // full screen
-			} else if (total === 2) {
-				dynamicHeight = (window.innerHeight - 100) / 2; // both half height
-			} else if (total >= 3) {
-				dynamicHeight = 300; // fallback default
-				// every new chart divides height proportionally
-			} else {
-				dynamicHeight = 300; // fallback default
-			}
-
-			// ✅ Only resize *existing* charts when 3 or more
-			ChartKit.registry.forEach((chart) => {
-				if (!chart.chart) return;
-
-				// For 1 or 2 charts, keep previous height
-				if (total <= 2 && chart.chart.w.config.chart.height !== dynamicHeight) return;
-
-				chart.chart.updateOptions(
-					{ chart: { height: dynamicHeight } },
-					false,
-					false
-				);
-			});
+		    const total = ChartKit.registry.size;
+		    let dynamicHeight = 300;
+		
+		    // Determine the default height IF no fixed height is used
+		    if (total === 1) {
+		        dynamicHeight = window.innerHeight - 269;
+		    } else if (total === 2) {
+		        dynamicHeight = (window.innerHeight - 100) / 2;
+		    } else if (total >= 3) {
+		        dynamicHeight = 300;
+		    }
+		
+		    ChartKit.registry.forEach((chart) => {
+		        if (!chart.chart) return;
+		
+		        // ⛔ SKIP RESIZE if user set a fixed height
+		        if (chart.fixedHeight != null) {
+		            return;
+		        }
+		
+		        // ⛔ For 1 or 2 charts, skip if height didn’t match
+		        if (total <= 2 && chart.chart.w.config.chart.height !== dynamicHeight) {
+		            return;
+		        }
+		
+		        // Apply new height only to non-fixed-height charts
+		        chart.chart.updateOptions(
+		            { chart: { height: dynamicHeight } },
+		            false,
+		            false
+		        );
+		    });
 		}
-
 		constructor(cfg) {
 			if (!cfg.key) throw new Error("ChartKit.create requires a unique 'key'");
 			if (!cfg.containerId) throw new Error("ChartKit.create requires 'containerId'");
@@ -118,6 +121,13 @@
 			this.loadedLabelId = cfg.loadedLabelId || null;
 			this.windowSize = cfg.windowSize ?? 120;
 			this.totalCharts = cfg.totalCharts;
+			this.fixedHeight = cfg.fixedHeight ?? null;
+			
+this.isRSIChart =
+    cfg.series?.length === 1 &&
+    cfg.series[0].type === "line" &&
+    cfg.series[0].dataSource instanceof RSIDataSource;
+    
 			this.seriesDefs = (cfg.series || []).map((s, i) => ({
 				id: i,
 				name: s.name ?? `S${i + 1}`,
@@ -158,19 +168,27 @@
 			const self = this;
 			// Dynamically adjust chart height based on how many charts are visible
 			const totalCharts = self.totalCharts || 1;
-			let dynamicHeight = 300;
-
-			if (totalCharts === 1) dynamicHeight = window.innerHeight - 269; // full screen (minus some margin)
-			else if (totalCharts === 2) dynamicHeight = (window.innerHeight - 100) / 2;
-			else dynamicHeight = 300; // fallback default
-
+			let dynamicHeight;
+			
+			// If user passed an explicit chart height → use it and skip everything else
+			// If user set fixedHeight, always use it
+			if (this.fixedHeight != null) {
+			    dynamicHeight = this.fixedHeight;
+			} else if (this.height != null) {
+			    dynamicHeight = this.height;
+			} else {
+			    // Otherwise use dynamic logic
+			    if (totalCharts === 1) dynamicHeight = window.innerHeight - 269;
+			    else if (totalCharts === 2) dynamicHeight = (window.innerHeight - 100) / 2;
+			    else dynamicHeight = 300;
+			}
 			return {
 				chart: {
-					type: "candlestick",
+					type: this.seriesDefs[0].type,
 					height: dynamicHeight,
 					animations: { enabled: false },
-					id: `chart-${self.key}`,
-					//	group: `chart-${self.key}`,
+					id: this.seriesDefs[0].type,// `chart-${self.key}`,
+					group: 'crypto',
 					zoom: { enabled: true, type: "x", autoScaleYaxis: false },
 					toolbar: { show: false },
 					panning: { enabled: false },
@@ -251,6 +269,24 @@
 		// === Build Combined Series =========================
 		// ---------------------------------------------------
 		buildCombinedSeries() {
+		// =================================================
+			// 100% BYPASS MODE FOR PURE LINE CHARTS (RSI, MFI)
+			// =================================================
+			if (this.isPureLineChart) {
+			    const s = this.seriesDefs[0];
+			
+			    return [
+			        {
+			            name: s.name,
+			            type: "line",
+			            data: (s.data || []).map(p => ({ x: p.x, y: p.y })),
+			            stroke: { width: 1 },
+			            markers: { size: 0 },
+			            tooltip: { enabled: true }
+			        }
+			    ];
+			}
+			
 			const candleSeries = this.seriesDefs.filter((s) => s.type === "candlestick");
 			if (!candleSeries.length) return [];
 
@@ -381,6 +417,57 @@
 		async initialLoad() {
 			this.showSpinner();
 			try {
+				
+				if (this.isRSIChart) {
+			    const { points } = await this.seriesDefs[0].dataSource.fetchOlder();
+			
+			    const options = {
+			        chart: { type: "line",
+					         group: 'crypto',
+					        height: this.fixedHeight || 120 ,
+					        zoom: { enabled: true, type: "x", autoScaleYaxis: false },
+							toolbar: { show: false },
+							panning: { enabled: false },
+							stacked: false,
+							events: {
+								zoomed: (_ctx, p) => self.onZoomOrScroll(p),
+								scrolled: (_ctx, p) => self.onZoomOrScroll(p),
+								dataPointMouseEnter: (evt, _ctx, { seriesIndex, dataPointIndex, w }) => {
+									self.hoverActive = true;
+									self.maybeUpdateOHLCFromIndex(seriesIndex, dataPointIndex, w);
+								},
+								dataPointMouseLeave: () => {
+									self.hoverActive = false;
+									self.showLatestOHLCForAll();
+								},
+							},},
+			        series: [{ name: this.seriesDefs[0].name, data: points }],
+			       xaxis: {
+					type: "datetime",
+					labels: { show: true, datetimeUTC: false, style: { colors: "#fff", fontSize: "0.7rem" } },
+					tooltip: { enabled: true, formatter: (val, opts) => self.xTooltipFormat(val, opts, self) },
+					crosshairs: { show: true, stroke: { color: "#fff", width: 1, dashArray: 3 } },
+				},
+				  yaxis: {
+					  floating:false,
+					  decimalsInFloat:0,
+					  	labels: { show: true, style: { colors: "#fff", fontSize: "0.7rem" } },
+				  },
+			        stroke: { curve: "straight", width: 1 },
+			        dataLabels: { enabled: false },
+			        grid: {
+					show: true,
+					borderColor: "#3d4258",
+					xaxis: { lines: { show: true } },
+					yaxis: { lines: { show: true } },
+				},
+			    };
+			
+			    this.apexOptions = options;
+			    this.chart = new ApexCharts(document.getElementById(this.containerId), options);
+			    await this.chart.render();
+			       return;
+			}		
 				this.apexOptions.series = this.buildCombinedSeries();
 				await this.fetchOnePageForAll();
 
@@ -651,12 +738,12 @@
 			const isUptrend = endPrice > startPrice;
 			const xStart = new Date(startDate).getTime();
 			const levels = [
-				  "10%", "25%", "33%", 
-				  "38%", "50%", 
-				  "61.8%",
-				  "66%", "75%", 
-				  "78.6%"          // new fibo
-				];
+				"10%", "25%", "33%",
+				"38%", "50%",
+				"61.8%",
+				"66%", "75%",
+				"78.6%"          // new fibo
+			];
 			// --- Start & End lines (always stored) ---
 			const yAnnotations = [
 				{
@@ -723,23 +810,23 @@
 			if (!this._retracements) this._retracements = {};
 			const existing = this._retracements[retracementId]; // preserve if re-adding
 			const defaultFibos = levels.reduce((acc, lvl) => (acc[lvl] = true, acc), {});
-			
+
 			// 🧩 preserve or apply passed-in hidden/fibo settings
 			const hiddenVal =
-			  typeof arguments[0]?.hidden === "boolean"
-			    ? arguments[0].hidden
-			    : existing?.hidden ?? false;
-			
+				typeof arguments[0]?.hidden === "boolean"
+					? arguments[0].hidden
+					: existing?.hidden ?? false;
+
 			const fibosVal =
-			  arguments[0]?.fibos
-			    ? { ...defaultFibos, ...arguments[0].fibos } // merge user fibos with defaults
-			    : existing?.fibos ?? defaultFibos;
-			
+				arguments[0]?.fibos
+					? { ...defaultFibos, ...arguments[0].fibos } // merge user fibos with defaults
+					: existing?.fibos ?? defaultFibos;
+
 			this._retracements[retracementId] = {
-			  params: { startPrice, endPrice, startDate, endDate },
-			  annotations: { yaxis: yAnnotations },
-			  hidden: hiddenVal,
-			  fibos: fibosVal,
+				params: { startPrice, endPrice, startDate, endDate },
+				annotations: { yaxis: yAnnotations },
+				hidden: hiddenVal,
+				fibos: fibosVal,
 			};
 
 			// Centralized render (ensures Start/End re-appear when shown)
@@ -747,78 +834,142 @@
 			this._emitRetrChanged();   // <--- notify
 
 		}
+		// === Trendline + Channel Handling ===============================
+
 		addTrendline(params) {
-  if (!this._trendlines) this._trendlines = {};
-
-  const { startDate, endDate, y1, y2, hidden = false, trendlineId, pointType } = params;
-  const id = trendlineId || `trend-${Date.now()}`;
- // ✅ If a trendline with this ID already exists, update its params instead of duplicating
-  if (this._trendlines[id]) {
-    delete this._trendlines[id]; // remove old visual first
-  }
-  const xStart = new Date(startDate).getTime();
-  const xEnd = new Date(endDate).getTime();
-
-  // --- Base (solid) part of trendline ---
-  const baseLine = {
-    type: "diagonal",
-    x1: xStart,
-    y1,
-    x2: xEnd,
-    y2,
-    borderColor: "#ff0000",
-    borderWidth: 2,
-    strokeDashArray: 0,
-    label: { text: "" },
-  };
-
-  // --- Extension (dashed projection to today) ---
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const daysBetween = Math.max(1e-9, (xEnd - xStart) / msPerDay);
-  const slope = (y2 - y1) / daysBetween;
-
-  const daysToNow = (Date.now() - xEnd) / msPerDay;
-  const yNowProj = y2 + slope * daysToNow;
-
-  const extLine = {
-    type: "diagonal",
-    x1: xEnd,
-    y1: y2,
-    x2: Date.now(),
-    y2: yNowProj,
-    borderColor: "#ff0000",
-    borderWidth: 2,
-    strokeDashArray: 6, // dashed
-    label: { text: "" },
-  };
-
-  // --- Store it ---
-  this._trendlines[id] = {
-  params: { startDate, endDate, y1, y2, pointType },
-  hidden,
-  annotations: { yaxis: [baseLine, extLine] },
-};
-
-  this.rebuildVisibleAnnotations();
-  this._emitTrendChanged();
-  return id;  // ✅ add this line
-
-}
-
-
+		  if (!this._trendlines) this._trendlines = {};
+		
+		  const { startDate, endDate, y1, y2, hidden = false, trendlineId, pointType } = params;
+		  const id = trendlineId || `trend-${Date.now()}`;
+		
+		  if (this._trendlines[id]) delete this._trendlines[id];
+		
+		  const xStart = new Date(startDate).getTime();
+		  const xEnd = new Date(endDate).getTime();
+		
+		  // --- Base line ---
+		  const baseLine = {
+		    type: "diagonal",
+		    x1: xStart,
+		    y1,
+		    x2: xEnd,
+		    y2,
+		    borderColor: "#ff0000",
+		    borderWidth: 2,
+		    strokeDashArray: 0,
+		    label: { text: "" },
+		  };
+		
+		  // --- Projection ---
+		  const msPerDay = 1000 * 60 * 60 * 24;
+		  const daysBetween = Math.max(1e-9, (xEnd - xStart) / msPerDay);
+		  const slope = (y2 - y1) / daysBetween;
+		
+		  const daysToNow = (Date.now() - xEnd) / msPerDay;
+		  const yNowProj = y2 + slope * daysToNow;
+		
+		  const extLine = {
+		    type: "diagonal",
+		    x1: xEnd,
+		    y1: y2,
+		    x2: Date.now(),
+		    y2: yNowProj,
+		    borderColor: "#ff0000",
+		    borderWidth: 2,
+		    strokeDashArray: 6,
+		  };
+		
+		  this._trendlines[id] = {
+		    params: { startDate, endDate, y1, y2, slope, pointType },
+		    hidden,
+		    annotations: { yaxis: [baseLine, extLine] },
+		    channels: [], // store attached channels
+		  };
+		
+		  this.rebuildVisibleAnnotations();
+		  this._emitTrendChanged();
+		  return id;
+		}
+		
+		addChannelToTrendline(trendlineId, { startDate, pointType, hidden = false, channelId }) {
+		  const t = this._trendlines?.[trendlineId];
+		  if (!t) {
+		    console.warn("Base trendline not found:", trendlineId);
+		    return null;
+		  }
+		
+		  const id = channelId || `chan-${Date.now()}`;
+		  const slope = t.params.slope;
+		  const { endDate } = t.params;
+		
+		  const msPerDay = 1000 * 60 * 60 * 24;
+		
+		  // x1 = channel start date, x2 = TODAY (projection)
+		  const x1 = new Date(startDate).getTime();
+		  const xEnd = new Date(endDate).getTime();
+		  const now = Date.now();
+		
+		  // --- refPrice based on candle high/low for that start date ---
+		  const candleSeries = this.seriesDefs.find(s => s.type === "candlestick");
+		  if (!candleSeries?.data?.length) return null;
+		
+		  const candles = candleSeries.data;
+		  const dateStr = new Date(startDate).toISOString().split("T")[0];
+		  const dayCandles = candles.filter(c => new Date(c.x).toISOString().split("T")[0] === dateStr);
+		  if (!dayCandles.length) return null;
+		
+		  const high = Math.max(...dayCandles.map(c => c.y[1]));
+		  const low = Math.min(...dayCandles.map(c => c.y[2]));
+		  const refPrice = pointType === "high" ? high : low;
+		
+		  // --- Channel: parallel line with same slope, extended to today ---
+		  const daysToNow = Math.max(1e-9, (now - x1) / msPerDay);
+		  const y1c = refPrice;
+		  const y2c = refPrice + slope * daysToNow;
+		
+		  const line = {
+		    type: "diagonal",
+		    x1,
+		    y1: y1c,
+		    x2: now,
+		    y2: y2c,
+		    borderColor: "#ff6e6e",
+		    borderWidth: 2,
+		    strokeDashArray: 4,
+		    label: { text: "" },
+		  };
+		
+		  if (!t.channels) t.channels = [];
+		
+		  t.channels.push({
+		    channelId: id,
+		    startDate,
+		    endDate,
+		    pointType,
+		    refPrice,
+		    hidden,
+		    annotations: { yaxis: [line] },
+		  });
+		
+		  this.rebuildVisibleAnnotations();
+		  this._emitTrendChanged();
+		  return id;
+		}
 		removeTrendline(id) {
-		  // safety check
 		  if (!this._trendlines || !this._trendlines[id]) return;
-		
-		  // remove from memory
 		  delete this._trendlines[id];
-		
-		  // visually refresh chart annotations
 		  this.rebuildVisibleAnnotations?.();
-		
-		  // notify listeners
 		  this._emitTrendChanged?.();
 		}
+
+		removeChannel(trendlineId, channelId) {
+		  const t = this._trendlines?.[trendlineId];
+		  if (!t || !t.channels) return;
+		  t.channels = t.channels.filter(c => c.channelId !== channelId);
+		  this.rebuildVisibleAnnotations?.();
+		  this._emitTrendChanged?.();
+		}
+
 		// === Retracement helpers (inside class) ==========================
 		isStartEndLine(y) {
 			const t = y?.label?.text || "";
@@ -827,57 +978,30 @@
 
 		rebuildVisibleAnnotations() {
 		  if (!this.chart) return;
-		
 		  const allYaxis = [];
 		
-		  // === 🔹 1. Handle Retracements (same logic as before) ==========
-		  const retrs = Object.values(this._retracements || {});
-		
-		  for (const r of retrs) {
-		    // ⛔ Skip hidden retracements
+		  // === Retracements ===
+		  for (const r of Object.values(this._retracements || {})) {
 		    if (r.hidden) continue;
-		
-		    const fibosToKeep = Object.keys(r.fibos || {}).filter(f => r.fibos[f] === true);
-		
+		    const fibosToKeep = Object.keys(r.fibos || {}).filter(f => r.fibos[f]);
 		    const lines = (r.annotations?.yaxis || []).filter(y => {
-		      const label = y.label?.text || "";
-		      // Always include Start/End if retracement is visible
-		      if (this.isStartEndLine(y)) return true;
-		      return fibosToKeep.some(level => label.includes(level));
+		      const lbl = y.label?.text || "";
+		      return this.isStartEndLine(y) || fibosToKeep.some(f => lbl.includes(f));
 		    });
-		
 		    allYaxis.push(...lines);
 		  }
 		
-		  // === 🔸 2. Handle Trendlines ====================================
-		  const trendlines = Object.values(this._trendlines || {});
-		
-		  for (const t of trendlines) {
-		    // skip if hidden
+		  // === Trendlines + Channels ===
+		  for (const t of Object.values(this._trendlines || {})) {
 		    if (t.hidden) continue;
-		
-		    const annos = t.annotations?.yaxis || [];
-		    for (const a of annos) {
-		      allYaxis.push({
-		        ...a,
-		        type: "diagonal", // ensure proper type
-		        borderColor: a.borderColor || "#00E396",
-		        borderWidth: a.borderWidth ?? 2,
-		        label: a.label || { text: "Trendline" },
-		      });
+		    allYaxis.push(...(t.annotations?.yaxis || []));
+		    for (const ch of t.channels || []) {
+		      if (ch.hidden) continue;
+		      allYaxis.push(...(ch.annotations?.yaxis || []));
 		    }
 		  }
 		
-		  // === 🧩 3. Apply Combined Annotations ===========================
-		  this.chart.updateOptions(
-		    {
-		      annotations: {
-		        yaxis: allYaxis,
-		      },
-		    },
-		    false, // don't redraw entire chart
-		    false  // don't animate
-		  );
+		  this.chart.updateOptions({ annotations: { yaxis: allYaxis } }, false, false);
 		}
 
 		toggleRetracement(retracementId) {
@@ -902,20 +1026,30 @@
 			this.rebuildVisibleAnnotations();
 			this._emitRetrChanged();
 		}
+	
 		getTrendlinesArray() {
 		  if (!this._trendlines) return [];
 		  return Object.entries(this._trendlines).map(([id, t]) => ({
 		    trendlineId: id,
 		    ...t.params,
-		    hidden: t.hidden ?? false, // ✅ ensure current hidden state is serialized
+		    hidden: t.hidden ?? false,
+		    channels: (t.channels || []).map(ch => ({
+		      channelId: ch.channelId,
+		      startDate: ch.startDate,
+		      endDate: ch.endDate,
+		      pointType: ch.pointType,
+		      refPrice: ch.refPrice,
+		      hidden: ch.hidden ?? false,
+		    })),
 		  }));
 		}
+		
 		getRetracementsArray() {
-		  return Object.values(this._retracements || {}).map(r => ({
-		    params: r.params,
-		    hidden: r.hidden ?? false,
-		    fibos: r.fibos ?? {},
-		  }));
+			return Object.values(this._retracements || {}).map(r => ({
+				params: r.params,
+				hidden: r.hidden ?? false,
+				fibos: r.fibos ?? {},
+			}));
 		}
 		saveUserSettings() {
 			const settings = {
